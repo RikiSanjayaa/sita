@@ -175,6 +175,7 @@ type SemproSidangProps = {
     programStudi: ProgramStudi;
     exams: ExamRow[];
     schedulableProjects: SchedulableProject[];
+    minimumPaperExaminers: number;
     calendarEvents: BimbinganEvent[];
     reportPeriods: { id: number; label: string; range: string }[];
     activeReportPeriodId: number | null;
@@ -304,6 +305,7 @@ export default function KaprodiSemproSidangPage() {
         programStudi,
         exams,
         schedulableProjects,
+        minimumPaperExaminers,
         calendarEvents,
         reportPeriods,
         activeReportPeriodId,
@@ -926,6 +928,7 @@ export default function KaprodiSemproSidangPage() {
             <ScheduleDialog
                 state={scheduleDialog}
                 projects={schedulableProjects}
+                minimumPaperExaminers={minimumPaperExaminers}
                 open={scheduleDialog !== null}
                 onOpenChange={(open) => {
                     if (!open) setScheduleDialog(null);
@@ -1091,11 +1094,13 @@ function ExamDetailSheet({
 function ScheduleDialog({
     state,
     projects,
+    minimumPaperExaminers,
     open,
     onOpenChange,
 }: {
     state: ScheduleDialogState | null;
     projects: SchedulableProject[];
+    minimumPaperExaminers: number;
     open: boolean;
     onOpenChange: (open: boolean) => void;
 }) {
@@ -1181,10 +1186,25 @@ function ScheduleDialog({
         errors.scheduled_date_start ??
         errors.scheduled_date_end ??
         errors.scheduled_for;
+    const needsPaperPanel =
+        activeState.type === 'sidang' && minimumPaperExaminers > 0;
+    const supervisorIds =
+        currentProject?.supervisors.map((supervisor) =>
+            String(supervisor.id),
+        ) ?? [];
+    const examinerCount = new Set(
+        form.data.additional_examiner_user_ids.filter(
+            (id) => !supervisorIds.includes(id),
+        ),
+    ).size;
+    const missingPaperSupervisor =
+        needsPaperPanel && supervisorIds.length === 0;
     const submitDisabled =
         form.processing ||
         form.data.project_id === '' ||
-        Boolean(currentProjectScheduleBlockedReason);
+        Boolean(currentProjectScheduleBlockedReason) ||
+        (needsPaperPanel &&
+            (missingPaperSupervisor || examinerCount < minimumPaperExaminers));
 
     function submit() {
         const projectId = Number(form.data.project_id);
@@ -1445,27 +1465,35 @@ function ScheduleDialog({
                             </div>
                         </div>
                     ) : (
-                        <LecturerMultiSearch
-                            label={`Penguji ${terms?.finalExam ?? neutralAcademicTerminology.finalExam} Tambahan`}
-                            values={form.data.additional_examiner_user_ids}
-                            onChange={(values) =>
-                                form.setData(
-                                    'additional_examiner_user_ids',
-                                    values,
-                                )
-                            }
-                            projectId={Number(form.data.project_id) || null}
-                            purpose="examiner"
-                            excludeIds={
-                                currentProject?.supervisors.map((supervisor) =>
-                                    String(supervisor.id),
-                                ) ?? []
-                            }
-                            error={
-                                (form.errors as Record<string, string>)
-                                    .additional_examiner_user_ids
-                            }
-                        />
+                        <div className="grid gap-2">
+                            <LecturerMultiSearch
+                                label={`Penguji ${terms?.finalExam ?? neutralAcademicTerminology.finalExam} Tambahan`}
+                                values={form.data.additional_examiner_user_ids}
+                                onChange={(values) =>
+                                    form.setData(
+                                        'additional_examiner_user_ids',
+                                        values,
+                                    )
+                                }
+                                projectId={Number(form.data.project_id) || null}
+                                purpose="examiner"
+                                excludeIds={supervisorIds}
+                                error={
+                                    (form.errors as Record<string, string>)
+                                        .additional_examiner_user_ids
+                                }
+                            />
+                            {needsPaperPanel && currentProject ? (
+                                <p
+                                    className="text-xs text-muted-foreground"
+                                    aria-live="polite"
+                                >
+                                    {missingPaperSupervisor
+                                        ? 'Tetapkan minimal satu pembimbing aktif agar nilai dari berkas bisa direkap.'
+                                        : `Pilih minimal dua dosen penguji selain pembimbing agar nilai dari berkas bisa direkap. ${examinerCount} penguji dipilih.`}
+                                </p>
+                            ) : null}
+                        </div>
                     )}
 
                     {activeState.type === 'sidang' ? (

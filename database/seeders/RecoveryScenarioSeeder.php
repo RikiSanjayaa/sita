@@ -142,7 +142,7 @@ class RecoveryScenarioSeeder extends Seeder
         ]);
 
         if ($scenario === 'sidang') {
-            $service->scheduleSidang($project->fresh(), $admin->id, now()->addDays(45)->setTime(10, 0)->toDateTimeString(), 'Ruang Sidang Pemulihan Awal', 'offline', [$budi->id, $ratna->id, $fajar->id]);
+            $service->scheduleSidang($project->fresh(), $admin->id, now()->addDays(45)->setTime(10, 0)->toDateTimeString(), 'Ruang Sidang Pemulihan Awal', 'offline', [$budi->id, $ratna->id, $fajar->id, $ahmad->id]);
         }
     }
 }

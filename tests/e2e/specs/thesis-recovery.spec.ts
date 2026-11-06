@@ -633,6 +633,7 @@ test.describe('conditional Sidang recovery', () => {
         const budi = await lecturer('dosen1');
         const ratna = await lecturer('dosen2');
         const fajar = await lecturer('dosen5');
+        const ahmad = await lecturer('dosen3');
         const publicContext = await browser.newContext();
         const publicPage = await publicContext.newPage();
         const revision = {
@@ -677,6 +678,7 @@ test.describe('conditional Sidang recovery', () => {
                 for (const member of [
                     { page: budi, score: '88' },
                     { page: ratna, score: '90' },
+                    { page: ahmad, score: '87' },
                 ]) {
                     await openRecoveryDefense(
                         member.page,

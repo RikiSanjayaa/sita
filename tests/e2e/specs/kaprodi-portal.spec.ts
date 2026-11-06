@@ -271,6 +271,13 @@ test.describe('Kaprodi portal', () => {
         await page
             .getByRole('button', { name: /Prof\. Ahmad Hidayat/ })
             .click();
+        await expect(
+            dialog.getByRole('button', { name: 'Simpan Jadwal' }),
+        ).toBeDisabled();
+        await dialog
+            .getByPlaceholder('Cari dosen penguji (min. 2 karakter)...')
+            .fill('Dewi');
+        await page.getByRole('button', { name: /Dr\. Dewi Lestari/ }).click();
 
         await dialog.getByRole('button', { name: 'Simpan Jadwal' }).click();
         await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -282,6 +289,7 @@ test.describe('Kaprodi portal', () => {
         await expect(row).toContainText('Dr. Budi Santoso');
         await expect(row).toContainText('Dr. Ratna Kusuma');
         await expect(row).toContainText('Prof. Ahmad Hidayat');
+        await expect(row).toContainText('Dr. Dewi Lestari');
     });
 
     test('dosen prodi lists supervision load and kaprodi changes a quota', async ({

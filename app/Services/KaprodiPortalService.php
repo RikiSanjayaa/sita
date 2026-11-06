@@ -15,6 +15,7 @@ use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use App\Support\AcademicTerminology;
 use App\Support\DefenseRevisionLog;
+use App\Support\SidangSettings;
 use App\Support\WitaDateTime;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
@@ -123,6 +124,7 @@ class KaprodiPortalService
                 'range' => $period->starts_on->format('d/m/Y').' - '.$period->ends_on->format('d/m/Y'),
             ])->all(),
             'activeReportPeriodId' => $reportPeriodService->activeId($reportPeriods),
+            'minimumPaperExaminers' => SidangSettings::minimumPaperExaminers($programStudi),
             'summaryCards' => collect(['sempro', 'sidang'])
                 ->map(fn(string $type): array => [
                     'label' => $this->defenseTypeLabel($type),

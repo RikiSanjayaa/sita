@@ -8,6 +8,11 @@ use Illuminate\Validation\ValidationException;
 
 final class SidangSettings
 {
+    public static function minimumPaperExaminers(?ProgramStudi $program): int
+    {
+        return $program?->slug === 'ilkom' ? 2 : 0;
+    }
+
     public const GRADES = ['A', 'B+', 'B', 'C+', 'C', 'D'];
 
     public const GRADE_KEYS = ['a', 'b_plus', 'b', 'c_plus', 'c', 'd'];

@@ -106,7 +106,7 @@ class PlaywrightScenarioSeeder extends Seeder
         $project = $this->project($student, $prodi, 'sempro', 'Optimasi Rute Pengiriman Logistik Dengan Algoritma Genetika');
         $this->completedSempro($project, $admin, $dosen3, $dosen4);
 
-        // Sidang scheduled: supervisors dosen1 + dosen2 plus examiner dosen3.
+        // Sidang scheduled: supervisors dosen1 + dosen2 and examiners dosen3 + dosen4.
         $student = $this->student($role, $prodi, 'e2e-sidang@sita.test', 'Sinta Sidang Terjadwal', '2210511005');
         $project = $this->project($student, $prodi, 'research', 'Prediksi Kelulusan Tepat Waktu Dengan Pohon Keputusan');
         $this->completedSempro($project, $admin, $dosen3, $dosen4);
@@ -117,7 +117,7 @@ class PlaywrightScenarioSeeder extends Seeder
             CarbonImmutable::now()->addDays(14)->setTime(10, 0)->toDateTimeString(),
             'Ruang Sidang E2E',
             'offline',
-            [$dosen1->id, $dosen2->id, $dosen3->id],
+            [$dosen1->id, $dosen2->id, $dosen3->id, $dosen4->id],
         );
 
         // Completed thesis, inside the archive grace period (issue #27): chat is read-only, nothing deleted yet.

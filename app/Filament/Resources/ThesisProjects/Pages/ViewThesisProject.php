@@ -10,6 +10,7 @@ use App\Services\LecturerSearchService;
 use App\Services\MentorshipProgressService;
 use App\Services\ThesisProjectAdminService;
 use App\Support\AcademicTerminology;
+use App\Support\SidangSettings;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Forms\Components\DatePicker;
@@ -38,6 +39,7 @@ class ViewThesisProject extends ViewRecord
         /** @var ThesisProject $record */
         $record = $this->record;
         $terms = AcademicTerminology::forProject($record);
+        $minimumPaperExaminers = SidangSettings::minimumPaperExaminers($record->programStudi);
 
         $workflowActions = [
             Action::make('approve_title')
@@ -428,6 +430,8 @@ class ViewThesisProject extends ViewRecord
                         ->default(fn(): string => $this->activeSupervisorSummary($record) ?: 'Belum ada pembimbing aktif')
                         ->disabled()
                         ->dehydrated(false)
+                        ->helperText(fn (): ?string => $minimumPaperExaminers > 0 && $this->requiredSidangPanelUserIds($record) === []
+                            ? 'Tetapkan minimal satu pembimbing aktif agar nilai dari berkas bisa direkap.' : null)
                         ->rows(2),
                     Select::make('additional_examiner_user_ids')
                         ->label('Dosen Penguji '.$terms['finalExam'])
@@ -442,11 +446,15 @@ class ViewThesisProject extends ViewRecord
                         ->getOptionLabelsUsing(fn(array $values): array => app(LecturerSearchService::class)->filamentOptionLabels($record, $values, 'examiner'))
                         ->searchPrompt('Ketik minimal 2 karakter untuk mencari dosen')
                         ->required()
-                        ->minItems(fn(): int => $this->requiredSidangPanelUserIds($record) === [] ? 2 : 1)
+                        ->minItems(fn(): int => $minimumPaperExaminers ?: ($this->requiredSidangPanelUserIds($record) === [] ? 2 : 1))
+                        ->validationMessages($minimumPaperExaminers > 0
+                            ? ['min' => 'Pilih minimal dua dosen penguji selain pembimbing agar nilai dari berkas bisa direkap.'] : [])
                         ->helperText(
-                            $this->requiredSidangPanelUserIds($record) === []
+                            $minimumPaperExaminers > 0
+                                ? 'Pilih minimal dua dosen penguji selain pembimbing agar nilai dari berkas bisa direkap.'
+                                : ($this->requiredSidangPanelUserIds($record) === []
                                 ? 'Belum ada pembimbing aktif. Pilih minimal dua dosen sebagai panel '.$terms['finalExamShort'].'.'
-                                : 'Pembimbing aktif otomatis masuk panel '.$terms['finalExamShort'].'. Pilih minimal satu dosen penguji tambahan.'
+                                : 'Pembimbing aktif otomatis masuk panel '.$terms['finalExamShort'].'. Pilih minimal satu dosen penguji tambahan.')
                         )
                         ->native(false),
                     Textarea::make('notes')

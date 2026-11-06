@@ -1,6 +1,7 @@
 <?php
 
 use App\Filament\Resources\ThesisProjects\Pages\ListThesisProjects;
+use App\Filament\Resources\ThesisProjects\Pages\ViewThesisProject;
 use App\Filament\Resources\ThesisProjects\ThesisProjectResource;
 use App\Models\AdminProfile;
 use App\Models\DosenProfile;
@@ -44,6 +45,41 @@ function sidangPaperFixture(?ProgramStudi $program = null): array
 
     return [$defense, $student, $program, $scores];
 }
+
+it('requires the Ilmu Komputer paper panel and completes old schedules without losing scores', function (): void {
+    [$defense] = sidangPaperFixture(ProgramStudi::factory()->create(['slug' => 'ilkom']));
+    $admin = User::factory()->asSuperAdmin()->create();
+    $project = $defense->project;
+    $panel = $defense->examiners()->orderBy('order_no')->get();
+    [$first, $second, $supervisor] = $panel->all();
+    $second->delete();
+    $first->update(['score' => 90]);
+    $schedule = fn (array $ids) => app(ThesisProjectAdminService::class)->scheduleSidang(
+        $project, $admin->id, '2026-11-06 10:00:00', 'Ruang Sidang', 'offline', $ids,
+    );
+
+    expect(fn () => $schedule([$first->lecturer_user_id, $second->lecturer_user_id]))
+        ->toThrow(RuntimeException::class, 'Tetapkan minimal satu pembimbing aktif');
+    $project->supervisorAssignments()->create([
+        'lecturer_user_id' => $supervisor->lecturer_user_id,
+        'role' => 'primary', 'status' => 'active', 'assigned_by' => $admin->id, 'started_at' => now(),
+    ]);
+    $this->actingAs($admin);
+    Livewire::test(ViewThesisProject::class, ['record' => $project->getRouteKey()])
+        ->mountAction('schedule_sidang')
+        ->setActionData(['additional_examiner_user_ids' => [$first->lecturer_user_id]])
+        ->callMountedAction()
+        ->assertHasActionErrors(['additional_examiner_user_ids' => 'min']);
+    expect(fn () => $schedule([$supervisor->lecturer_user_id, $first->lecturer_user_id, $supervisor->lecturer_user_id]))
+        ->toThrow(RuntimeException::class, 'Pilih minimal dua dosen penguji selain pembimbing');
+    expect($defense->fresh()->scheduled_for->toDateTimeString())->toBe('2026-11-04 23:30:00')
+        ->and($defense->examiners()->count())->toBe(2);
+
+    $updated = $schedule([$supervisor->lecturer_user_id, $first->lecturer_user_id, $second->lecturer_user_id]);
+    expect($updated->id)->toBe($defense->id)
+        ->and($updated->examiners()->orderBy('order_no')->pluck('role')->all())->toBe(['primary_supervisor', 'examiner', 'examiner'])
+        ->and($first->fresh()->score)->toEqual(90);
+});
 
 it('lists only accessible latest sidang records and shows the shortcut for each stage', function (): void {
     [$scheduled, , $program] = sidangPaperFixture();

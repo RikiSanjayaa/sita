@@ -903,6 +903,18 @@ test.describe('Golden path: from title proposal to graduation', () => {
                 await kaprodiPage
                     .getByRole('button', { name: lecturers.fajar.name })
                     .click();
+                await expect(
+                    dialog.getByText(/1 penguji dipilih/),
+                ).toBeVisible();
+                await expect(
+                    dialog.getByRole('button', { name: 'Simpan Jadwal' }),
+                ).toBeDisabled();
+                await dialog
+                    .getByPlaceholder('Cari dosen penguji (min. 2 karakter)...')
+                    .fill(lecturers.ahmad.query);
+                await dialog
+                    .getByRole('button', { name: lecturers.ahmad.name })
+                    .click();
                 await dialog
                     .getByRole('button', { name: 'Simpan Jadwal' })
                     .click();
@@ -981,6 +993,7 @@ test.describe('Golden path: from title proposal to graduation', () => {
                     { page: pageOf.budi, score: '88' },
                     { page: pageOf.ratna, score: '90' },
                     { page: pageOf.fajar, score: '85' },
+                    { page: pageOf.ahmad, score: '87' },
                 ];
 
                 for (const member of panel) {
