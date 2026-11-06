@@ -1012,6 +1012,7 @@ for (const type of ['sempro', 'sidang'] as const) {
                           await lecturer('dosen1'),
                           await lecturer('dosen2'),
                           await lecturer('dosen5'),
+                          await lecturer('dosen3'),
                       ];
             const failedReason = `${label} tidak lulus; evaluasi dan pembahasan belum memenuhi standar.`;
             const location = `Ruang ${label} Ulang Pemulihan`;

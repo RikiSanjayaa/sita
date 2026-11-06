@@ -7,6 +7,7 @@ use App\Filament\Resources\ThesisProjects\ThesisProjectResource;
 use App\Models\AdminProfile;
 use App\Models\DosenProfile;
 use App\Models\Faculty;
+use App\Models\KaprodiAssignment;
 use App\Models\MahasiswaProfile;
 use App\Models\ProgramStudi;
 use App\Models\SidangReportPeriod;
@@ -344,4 +345,40 @@ it('assigns a shared No SK and preserves grades and existing different numbers',
 
     $sheet = sidangReportSheet($this->post(route('sidang.report'))->assertOk()->streamedContent());
     expect($sheet)->toContain('E12:E17', 'E18:E20', '001/ADUM', '002/ADUM');
+});
+
+it('limits kaprodi to the own program for the paper, the Word packet and the Excel report', function (): void {
+    [$own, $ownStudent, $ownProgram, $ownScores] = sidangPaperFixture();
+    [$foreign, $foreignStudent, $foreignProgram, $foreignScores] = sidangPaperFixture();
+    $admin = User::factory()->asSuperAdmin()->create();
+    foreach ([[$own, $ownScores], [$foreign, $foreignScores]] as [$defense, $scores]) {
+        app(SidangPaperService::class)->record($defense, $admin, ['scores' => $scores]);
+        app(ThesisProjectAdminService::class)->completeSidang(
+            $defense->project, $admin->id, 'pass', 'Keputusan resmi.', null, null,
+        );
+    }
+    $foreignPeriod = app(SidangReportPeriodService::class)->save($admin, [
+        'program_studi_id' => $foreignProgram->id, 'semester' => 'ganjil', 'start_year' => 2026,
+        'starts_on' => '2026-11-01', 'ends_on' => '2026-11-30',
+    ]);
+
+    $kaprodi = User::factory()->asKaprodi()->create();
+    KaprodiAssignment::factory()->create(['program_studi_id' => $ownProgram->id, 'user_id' => $kaprodi->id]);
+    $this->actingAs($kaprodi->fresh());
+
+    $this->get(route('sidang.paper.show', $own))->assertOk();
+    $this->get(route('sidang.paper.print', $own))->assertOk();
+    $this->get(route('sidang.paper.show', $foreign))->assertForbidden();
+    $this->get(route('sidang.paper.print', $foreign))->assertForbidden();
+    $this->post(route('sidang.paper.store', $foreign), ['sidang_sk' => '009/LAIN'])->assertForbidden();
+    expect($foreign->fresh()->sidang_sk)->toBeNull();
+    $this->post(route('sidang.report'), ['period_id' => $foreignPeriod->id])->assertForbidden();
+
+    $sheet = sidangReportSheet($this->post(route('sidang.report'))->assertOk()->streamedContent());
+    expect($sheet)->toContain($ownStudent->name)->not->toContain($foreignStudent->name);
+
+    $outsider = User::factory()->asDosen()->create();
+    DosenProfile::factory()->create(['user_id' => $outsider->id, 'program_studi_id' => $ownProgram->id, 'is_active' => true]);
+    $this->actingAs($outsider)->get(route('sidang.paper.print', $own))->assertForbidden();
+    $this->post(route('sidang.report'))->assertForbidden();
 });
