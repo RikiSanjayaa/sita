@@ -1,5 +1,6 @@
 <?php
 
+use App\Filament\Resources\ProgramStudis\Pages\EditProgramStudi;
 use App\Filament\Resources\ThesisProjects\Pages\ListThesisProjects;
 use App\Filament\Resources\ThesisProjects\Pages\ViewThesisProject;
 use App\Filament\Resources\ThesisProjects\ThesisProjectResource;
@@ -13,6 +14,7 @@ use App\Services\SidangPaperService;
 use App\Services\SidangReportPeriodService;
 use App\Services\SidangReportWriter;
 use App\Services\ThesisProjectAdminService;
+use App\Support\SidangSettings;
 use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
 
@@ -45,6 +47,22 @@ function sidangPaperFixture(?ProgramStudi $program = null): array
 
     return [$defense, $student, $program, $scores];
 }
+
+it('opens and saves the sidang document and grade settings for a program', function (): void {
+    $program = ProgramStudi::factory()->create();
+    $this->actingAs(User::factory()->asSuperAdmin()->create());
+
+    Livewire::test(EditProgramStudi::class, ['record' => $program->getRouteKey()])
+        ->mountAction('sidangSettings')
+        ->setActionData(['sidang_settings' => [
+            ...SidangSettings::forProgram($program),
+            'city' => 'Kota Uji',
+        ]])
+        ->callMountedAction()
+        ->assertHasNoActionErrors();
+
+    expect($program->fresh()->sidang_settings['city'])->toBe('Kota Uji');
+});
 
 it('requires the Ilmu Komputer paper panel and completes old schedules without losing scores', function (): void {
     [$defense] = sidangPaperFixture(ProgramStudi::factory()->create(['slug' => 'ilkom']));

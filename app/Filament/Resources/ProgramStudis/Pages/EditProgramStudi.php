@@ -20,6 +20,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
+use Filament\Schemas\Schema;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rules\Password;
 
@@ -35,7 +36,7 @@ class EditProgramStudi extends EditRecord
                 ->label('Atur Dokumen dan Nilai Sidang')
                 ->icon('heroicon-m-document-text')
                 ->fillForm(fn (): array => ['sidang_settings' => SidangSettings::forProgram($this->record)])
-                ->schema([
+                ->schema(fn (Schema $schema): Schema => $schema->columns(2)->components([
                     TextInput::make('sidang_settings.heading')->label('Nama institusi pada kop')->required()->maxLength(100),
                     TextInput::make('sidang_settings.city')->label('Kota pengesahan')->required()->maxLength(80),
                     TextInput::make('sidang_settings.dean_name')->label('Nama dekan')->maxLength(120),
@@ -52,8 +53,7 @@ class EditProgramStudi extends EditRecord
                     ),
                     Textarea::make('sidang_settings.examiner_rubric')->label('Komponen nilai penguji')->helperText('Satu baris per komponen dengan format Komponen | Bobot.')->rows(7)->maxLength(1500)->required(),
                     Textarea::make('sidang_settings.supervisor_rubric')->label('Komponen nilai pembimbing')->helperText('Satu baris per komponen dengan format Komponen | Bobot.')->rows(5)->maxLength(1500)->required(),
-                ])
-                ->columns(2)
+                ]))
                 ->action(function (array $data): void {
                     abort_unless(app(SidangPaperPolicy::class)->manage(Auth::user(), (int) $this->record->id), 403);
                     $settings = $data['sidang_settings'];
