@@ -6,6 +6,7 @@ use App\Filament\Resources\ThesisProjects\Pages\ViewThesisProject;
 use App\Filament\Resources\ThesisProjects\ThesisProjectResource;
 use App\Models\AdminProfile;
 use App\Models\DosenProfile;
+use App\Models\Faculty;
 use App\Models\MahasiswaProfile;
 use App\Models\ProgramStudi;
 use App\Models\SidangReportPeriod;
@@ -62,6 +63,24 @@ it('opens and saves the sidang document and grade settings for a program', funct
         ->assertHasNoActionErrors();
 
     expect($program->fresh()->sidang_settings['city'])->toBe('Kota Uji');
+});
+
+it('fills the Word letterhead from the issuing program and faculty', function (): void {
+    $faculty = Faculty::factory()->create(['name' => 'Fakultas Ekonomi dan Bisnis', 'code' => 'FEB']);
+    $program = ProgramStudi::factory()->create([
+        'faculty_id' => $faculty->id,
+        'name' => 'Manajemen & Bisnis',
+        'sidang_settings' => ['heading' => 'Universitas Uji'],
+    ]);
+    [$defense] = sidangPaperFixture($program);
+    $this->actingAs(User::factory()->asSuperAdmin()->create());
+
+    foreach ([[], ['lembar' => 'berita-acara']] as $options) {
+        $word = $this->get(route('sidang.paper.print', [$defense, ...$options]))->assertOk()->streamedContent();
+        expect(sidangReportSheet($word, 'word/header1.xml'))
+            ->toContain('UNIVERSITAS UJI', 'FAKULTAS EKONOMI DAN BISNIS', 'MANAJEMEN &amp; BISNIS')
+            ->not->toContain('ILMU KOMPUTER', 'ftd@', '{{');
+    }
 });
 
 it('requires the Ilmu Komputer paper panel and completes old schedules without losing scores', function (): void {
@@ -180,7 +199,8 @@ it('prints the scheduled identity, records actual panel totals, and exports only
         ->toContain($student->name, 'Sistem Rekap Penilaian', 'TIDAK LULUS', '<w:tbl>')
         ->not->toContain('Suwist', 'DAFTAR HADIR', '{{');
     $template = file_get_contents(resource_path('templates/sidang/berkas-sidang.docx'));
-    expect(sidangReportSheet($word, 'word/header1.xml'))->toBe(sidangReportSheet($template, 'word/header1.xml'));
+    expect(sidangReportSheet($word, 'word/header1.xml'))->toContain('UNIVERSITAS BUMIGORA')
+        ->and(sidangReportSheet($word, 'word/media/image1.png'))->toBe(sidangReportSheet($template, 'word/media/image1.png'));
 
     $params = ['from' => '2026-11-04', 'until' => '2026-11-04', 'period' => 'Semester Uji'];
     expect(sidangReportSheet($this->post(route('sidang.report'), $params)->assertOk()->streamedContent()))

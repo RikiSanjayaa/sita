@@ -8,6 +8,7 @@ use App\Support\SidangOfficeTemplate;
 use App\Support\SidangSettings;
 use App\Support\WitaDateTime;
 use DOMComment;
+use DOMDocument;
 use DOMElement;
 use DOMXPath;
 use ZipArchive;
@@ -47,15 +48,25 @@ final class SidangWordWriter
                 }
             }
             $fields = $this->fields($defense);
-            foreach ($query->query('//w:t') as $run) {
-                if (str_contains($run->textContent, '{{')) {
-                    $text = preg_replace_callback('/\{\{(\w+)\}\}/', fn (array $match): string => $fields[$match[1]] ?? '', $run->textContent);
-                    $run->replaceChildren($xml->createTextNode($text));
-                    $run->setAttributeNS('http://www.w3.org/XML/1998/namespace', 'xml:space', 'preserve');
-                }
-            }
+            $this->fillFields($xml, $fields);
             SidangOfficeTemplate::saveXml($zip, $entry, $xml);
+
+            $headerEntry = 'word/header1.xml';
+            $header = SidangOfficeTemplate::readXml($zip, $headerEntry);
+            $this->fillFields($header, $fields);
+            SidangOfficeTemplate::saveXml($zip, $headerEntry, $header);
         });
+    }
+
+    private function fillFields(DOMDocument $xml, array $fields): void
+    {
+        foreach ($xml->getElementsByTagNameNS($xml->documentElement->namespaceURI, 't') as $run) {
+            if (str_contains($run->textContent, '{{')) {
+                $text = preg_replace_callback('/\{\{(\w+)\}\}/', fn (array $match): string => $fields[$match[1]] ?? '', $run->textContent);
+                $run->replaceChildren($xml->createTextNode($text));
+                $run->setAttributeNS('http://www.w3.org/XML/1998/namespace', 'xml:space', 'preserve');
+            }
+        }
     }
 
     private function fields(ThesisDefense $defense): array
@@ -63,7 +74,10 @@ final class SidangWordWriter
         $project = $defense->project;
         $program = $project->programStudi;
         $terms = AcademicTerminology::forProject($project);
-        $settings = $defense->sidang_paper['settings'] ?? SidangSettings::forProgram($program);
+        $currentSettings = SidangSettings::forProgram($program);
+        $settings = $defense->sidang_paper['settings'] ?? $currentSettings;
+        $faculty = $program?->faculty;
+        $programName = trim($terms['degreeLevel'].' '.$program?->name);
         $panel = $defense->examiners->sortBy('order_no');
         $examiners = $panel->where('role', 'examiner')->values();
         $head = $program?->kaprodiAssignments->firstWhere('is_primary', true)?->user;
@@ -72,7 +86,12 @@ final class SidangWordWriter
         $fields = [
             'student' => (string) $project->student?->name, 'nim' => $nim,
             'title' => (string) $defense->titleVersion?->title_id,
-            'program' => trim($terms['degreeLevel'].' '.$program?->name),
+            'program' => $programName,
+            'letterheadInstitution' => mb_strtoupper($currentSettings['heading']),
+            'letterheadFaculty' => $faculty?->is_placeholder ? '' : mb_strtoupper($faculty?->name ?? ''),
+            'letterheadProgram' => $program === null ? '' : 'PROGRAM STUDI '.mb_strtoupper($programName),
+            'letterheadContact' => $faculty?->code === 'FT'
+                ? 'Telp (0370) 638369 | Whatsapp 0859-3615-9726 | Email ftd@universitasbumigora.ac.id' : '',
             'schedule' => WitaDateTime::translatedDateRange($defense->scheduled_for, $defense->scheduled_until).' / '.$defense->location,
             'placeDate' => $settings['city'].', '.WitaDateTime::translated($defense->scheduled_for, 'd F Y', withLabel: false),
             'supervisor1' => (string) $panel->firstWhere('role', 'primary_supervisor')?->lecturer?->name,
