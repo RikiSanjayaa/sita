@@ -59,8 +59,10 @@ final class SidangPaperService
                 && $defense->sidang_paper === null && $defense->project->state === 'active',
                 'Sidang ini sudah diproses atau tidak lagi terjadwal.');
 
-            $moderator = $data['moderator_user_id'] ?? null;
-            if ($moderator !== null) {
+            $moderator = array_key_exists('moderator_user_id', $data)
+                ? $data['moderator_user_id']
+                : $defense->moderator_user_id;
+            if (isset($data['moderator_user_id'])) {
                 $this->ensure(User::query()->whereKey($moderator)->whereHas('dosenProfile', function ($query) use ($defense): void {
                     $query->where('is_active', true)->where(function ($query) use ($defense): void {
                         $query->where('program_studi_id', $defense->project->program_studi_id)

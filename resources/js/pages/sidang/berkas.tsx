@@ -37,12 +37,10 @@ interface Props {
         title: string | null;
         schedule: string | null;
         location: string | null;
-        moderatorId: number | null;
         sk: string | null;
         panel: Panel[];
         summary: { value: number; grade: string } | null;
     };
-    moderators: { id: number; name: string }[];
     weights: Record<ScoreRole, number>;
     forms: Record<string, string>;
     backUrl: string;
@@ -63,7 +61,6 @@ function initialScore(member?: Panel) {
 
 export default function BerkasSidang({
     defense,
-    moderators,
     weights,
     forms,
     backUrl,
@@ -74,9 +71,6 @@ export default function BerkasSidang({
     const examiners = defense.panel.filter((member) => !member.supervisor);
     const supervisors = defense.panel.filter((member) => member.supervisor);
     const form = useForm({
-        moderator_user_id: defense.moderatorId
-            ? String(defense.moderatorId)
-            : '',
         sidang_sk: defense.sk ?? '',
         scores: {
             examiner_1: initialScore(examiners[0]),
@@ -206,45 +200,18 @@ export default function BerkasSidang({
                         ))}
                     </ul>
                 )}
-                <SectionCard title="Moderator dan nomor SK">
-                    <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="space-y-2">
-                            <Label htmlFor="sidang-moderator">Moderator</Label>
-                            <select
-                                id="sidang-moderator"
-                                className={selectClass}
-                                disabled={!defense.editable}
-                                value={form.data.moderator_user_id}
-                                onChange={(event) =>
-                                    form.setData(
-                                        'moderator_user_id',
-                                        event.target.value,
-                                    )
-                                }
-                            >
-                                <option value="">Belum ditetapkan</option>
-                                {moderators.map((person) => (
-                                    <option key={person.id} value={person.id}>
-                                        {person.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="sidang-sk">Nomor SK</Label>
-                            <Input
-                                id="sidang-sk"
-                                maxLength={150}
-                                disabled={!defense.editable}
-                                value={form.data.sidang_sk}
-                                onChange={(event) =>
-                                    form.setData(
-                                        'sidang_sk',
-                                        event.target.value,
-                                    )
-                                }
-                            />
-                        </div>
+                <SectionCard title="SK sidang">
+                    <div className="max-w-lg space-y-2">
+                        <Label htmlFor="sidang-sk">Nomor SK</Label>
+                        <Input
+                            id="sidang-sk"
+                            maxLength={150}
+                            disabled={!defense.editable}
+                            value={form.data.sidang_sk}
+                            onChange={(event) =>
+                                form.setData('sidang_sk', event.target.value)
+                            }
+                        />
                     </div>
                     {defense.editable && (
                         <Button
@@ -253,18 +220,15 @@ export default function BerkasSidang({
                             className="mt-4"
                             disabled={form.processing}
                             onClick={() => {
-                                form.transform(
-                                    ({ moderator_user_id, sidang_sk }) => ({
-                                        moderator_user_id,
-                                        sidang_sk,
-                                    }),
-                                );
+                                form.transform(({ sidang_sk }) => ({
+                                    sidang_sk,
+                                }));
                                 form.post(storeUrl, {
                                     preserveScroll: true,
                                 });
                             }}
                         >
-                            Simpan detail berkas
+                            Simpan No SK
                         </Button>
                     )}
                 </SectionCard>

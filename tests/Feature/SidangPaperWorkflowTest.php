@@ -105,12 +105,18 @@ it('prints the scheduled identity, records actual panel totals, and exports only
     $this->actingAs($moderator)->get(route('sidang.paper.print', $defense))->assertOk();
     $this->post(route('sidang.paper.store', $defense), ['scores' => $scores])->assertForbidden();
 
+    $defense->forceFill(['moderator_user_id' => $moderator->id])->save();
     $this->actingAs($admin)->get(route('sidang.paper.show', $defense))->assertOk();
+    $this->post(route('sidang.paper.store', $defense), ['sidang_sk' => '001/UJI'])
+        ->assertSessionHasNoErrors()->assertRedirect();
+    expect($defense->fresh()->sidang_sk)->toBe('001/UJI')
+        ->and($defense->fresh()->moderator_user_id)->toBe($moderator->id);
     $this->post(route('sidang.paper.store', $defense), [
-        'moderator_user_id' => $moderator->id, 'sidang_sk' => '001/UJI', 'scores' => $scores,
+        'scores' => $scores,
     ])->assertSessionHasNoErrors()->assertRedirect();
 
     expect($defense->fresh()->status)->toBe('awaiting_finalization')
+        ->and($defense->fresh()->moderator_user_id)->toBe($moderator->id)
         ->and($defense->fresh()->sidang_paper['value'])->toEqual(80)
         ->and($defense->fresh()->sidang_paper['grade'])->toBe('B+')
         ->and($defense->examiners()->where('decision', 'pending')->count())->toBe(3);

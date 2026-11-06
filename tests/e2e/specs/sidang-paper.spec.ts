@@ -22,6 +22,11 @@ test('kaprodi opens the scheduled packet and downloads a filtered report', async
         page.getByRole('heading', { name: /Berkas Sidang/ }),
     ).toBeVisible();
     await expect(page.getByText(/membutuhkan dua penguji/)).toBeVisible();
+    await expect(page.getByLabel('Moderator', { exact: true })).toHaveCount(0);
+    await expect(page.getByLabel('Nomor SK')).toBeEditable();
+    await expect(
+        page.getByRole('button', { name: 'Simpan No SK' }),
+    ).toBeEnabled();
 
     const content = page
         .getByRole('main')

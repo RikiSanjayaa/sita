@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Filament\Resources\ThesisProjects\Pages\ListThesisProjects;
 use App\Http\Requests\StoreSidangPaperRequest;
 use App\Models\ThesisDefense;
-use App\Models\User;
 use App\Policies\SidangPaperPolicy;
 use App\Services\SidangPaperService;
 use App\Services\SidangWordWriter;
@@ -50,7 +49,6 @@ class SidangPaperController extends Controller
                 'title' => $defense->titleVersion?->title_id,
                 'schedule' => WitaDateTime::format($defense->scheduled_for),
                 'location' => $defense->location,
-                'moderatorId' => $defense->moderator_user_id,
                 'sk' => $defense->sidang_sk,
                 'panel' => $defense->examiners->sortBy('order_no')->values()->map(fn ($examiner): array => [
                     'id' => $examiner->id,
@@ -62,12 +60,6 @@ class SidangPaperController extends Controller
                     'value' => $defense->sidang_paper['value'], 'grade' => $defense->sidang_paper['grade'],
                 ],
             ],
-            'moderators' => User::query()->whereHas('dosenProfile', function ($query) use ($project, $defense): void {
-                $query->where('is_active', true)->where(function ($query) use ($project, $defense): void {
-                    $query->where('program_studi_id', $project->program_studi_id)
-                        ->orWhereIn('user_id', $defense->examiners->pluck('lecturer_user_id'));
-                });
-            })->orderBy('name')->get(['id', 'name']),
             'weights' => array_intersect_key(SidangSettings::forProgram($project->programStudi), SidangPaperService::ROLES),
             'forms' => self::FORMS,
             'fromQueue' => $fromQueue,

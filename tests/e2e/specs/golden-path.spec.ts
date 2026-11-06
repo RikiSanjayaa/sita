@@ -951,6 +951,9 @@ test.describe('Golden path: from title proposal to graduation', () => {
                     .click();
                 await expect(adminPage).toHaveURL(/#nilai-dari-berkas$/);
                 await expect(
+                    adminPage.getByRole('button', { name: 'Simpan No SK' }),
+                ).toBeEnabled();
+                await expect(
                     adminPage.getByRole('heading', {
                         name: 'Nilai dari berkas',
                     }),
