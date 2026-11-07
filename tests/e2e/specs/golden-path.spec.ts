@@ -961,9 +961,12 @@ test.describe('Golden path: from title proposal to graduation', () => {
                 await sidangRow
                     .getByRole('link', { name: 'Input Nilai', exact: true })
                     .click();
-                await expect(adminPage).toHaveURL(/#nilai-dari-berkas$/);
+                await expect(adminPage).toHaveURL(
+                    /\/admin\/thesis-projects\/\d+\/berkas-sidang\/\d+\?dari=daftar#nilai-dari-berkas$/,
+                );
+                await expect(adminPage.locator('.fi-sidebar')).toBeVisible();
                 await expect(
-                    adminPage.getByRole('button', { name: 'Simpan No SK' }),
+                    adminPage.getByRole('button', { name: 'Simpan nomor SK' }),
                 ).toBeEnabled();
                 await expect(
                     adminPage.getByRole('heading', {
@@ -1038,7 +1041,16 @@ test.describe('Golden path: from title proposal to graduation', () => {
                 await adminSearch.fill(student);
                 await adminSearch.press('Enter');
                 await studentRowIn(adminPage, student)
-                    .getByRole('link', { name: 'Finalisasi', exact: true })
+                    .getByRole('link', {
+                        name: 'Tinjau & Finalisasi',
+                        exact: true,
+                    })
+                    .click();
+                await adminPage
+                    .getByRole('link', {
+                        name: 'Finalisasi Sidang',
+                        exact: true,
+                    })
                     .click();
                 const modal = adminPage
                     .locator('.fi-modal-window:visible')
