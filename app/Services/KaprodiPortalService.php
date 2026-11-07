@@ -6,6 +6,7 @@ use App\Models\KaprodiAssignment;
 use App\Models\MahasiswaProfile;
 use App\Models\MentorshipDocument;
 use App\Models\ProgramStudi;
+use App\Models\SidangReportPeriod;
 use App\Models\ThesisDefense;
 use App\Models\ThesisDocument;
 use App\Models\ThesisProject;
@@ -14,6 +15,7 @@ use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use App\Support\AcademicTerminology;
 use App\Support\DefenseRevisionLog;
+use App\Support\SidangSettings;
 use App\Support\WitaDateTime;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
@@ -104,13 +106,28 @@ class KaprodiPortalService
             ->with([
                 'project.student.mahasiswaProfile',
                 'project.latestTitle',
+                'project.programStudi',
+                'examiners.lecturer.dosenProfile',
                 ...DefenseRevisionLog::RELATIONS,
             ])
             ->latest('scheduled_for')
             ->get();
 
+        $latestSidangAttempts = $defenses->where('type', 'sidang')->where('status', '!=', 'cancelled')
+            ->groupBy('project_id')->map(fn (Collection $attempts): int => $attempts->max('attempt_no'));
+        $reportPeriodService = app(SidangReportPeriodService::class);
+        $reportPeriods = $reportPeriodService->periods($programStudi->id);
+        $scoreSummaries = $defenses->mapWithKeys(fn (ThesisDefense $defense): array => [$defense->id => app(SidangScoreService::class)->summary($defense)]);
+
         return [
             'programStudi' => $this->programStudiSummary($programStudi),
+            'reportPeriods' => $reportPeriods->map(fn (SidangReportPeriod $period): array => [
+                'id' => $period->id,
+                'label' => $period->label(),
+                'range' => $period->starts_on->format('d/m/Y').' - '.$period->ends_on->format('d/m/Y'),
+            ])->all(),
+            'activeReportPeriodId' => $reportPeriodService->activeId($reportPeriods),
+            'minimumPaperExaminers' => SidangSettings::minimumPaperExaminers($programStudi),
             'summaryCards' => collect(['sempro', 'sidang'])
                 ->map(fn(string $type): array => [
                     'label' => $this->defenseTypeLabel($type),
@@ -128,9 +145,13 @@ class KaprodiPortalService
                 'status' => $this->statusLabel($defense->status),
                 'statusKey' => $defense->status,
                 'result' => $this->defenseResultLabel($defense),
-                'averageScore' => $this->averageScore($defense),
+                'averageScore' => $scoreSummaries[$defense->id]['value'] ?? $this->averageScore($defense),
                 'scoreRequired' => $defense->requiresScore(),
-                'grade' => $this->grade($this->averageScore($defense)),
+                'grade' => $scoreSummaries[$defense->id]['grade'] ?? $this->grade($this->averageScore($defense)),
+                'paperRecorded' => isset($defense->sidang_paper['recorded_at']),
+                'readyForReport' => $scoreSummaries[$defense->id] !== null && $defense->status === 'completed'
+                    && in_array($defense->result, ['pass', 'pass_with_revision'], true)
+                    && $defense->attempt_no === $latestSidangAttempts->get($defense->project_id),
                 'student' => $defense->project?->student?->name ?? 'Mahasiswa',
                 'terminology' => $defense->project instanceof ThesisProject
                     ? AcademicTerminology::forProject($defense->project)
@@ -152,7 +173,9 @@ class KaprodiPortalService
                         'id' => $examiner->lecturer_user_id,
                         'name' => $examiner->lecturer?->name ?? '-',
                         'role' => $this->examinerRoleLabel($examiner->role),
-                        'decision' => $this->defenseDecisionLabel($defense, $examiner->decision),
+                        'decision' => $defense->type === 'sidang' && $examiner->decision === 'pending' && $examiner->score !== null
+                            ? ($examiner->score_source === 'paper' ? 'Nilai dari berkas' : 'Nilai tercatat')
+                            : $this->defenseDecisionLabel($defense, $examiner->decision),
                         'score' => $examiner->score,
                         'profileUrl' => route('users.profile.show', ['user' => $examiner->lecturer_user_id]),
                     ])

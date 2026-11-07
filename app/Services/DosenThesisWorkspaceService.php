@@ -40,6 +40,8 @@ class DosenThesisWorkspaceService
             ->with([
                 'defense.project.student.mahasiswaProfile',
                 'defense.project.latestTitle',
+                'defense.project.programStudi',
+                'defense.examiners.lecturer.dosenProfile',
                 ...array_map(fn (string $relation): string => 'defense.'.$relation, DefenseRevisionLog::RELATIONS),
                 'defense.documents.sourceWorkspaceDocument',
             ])

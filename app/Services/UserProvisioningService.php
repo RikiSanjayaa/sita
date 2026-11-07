@@ -101,6 +101,7 @@ class UserProvisioningService
                 ['user_id' => $user->id],
                 [
                     'nik' => $this->nullableString($data['nik'] ?? ($data['nidn'] ?? null)),
+                    ...(array_key_exists('sidang_nidn', $data) ? ['sidang_nidn' => $this->nullableString($data['sidang_nidn'])] : []),
                     'program_studi_id' => $primaryAssignment['program_studi_id'],
                     'concentration' => $primaryAssignment['concentration'],
                     'supervision_quota' => $this->nullableInt($data['supervision_quota'] ?? null)

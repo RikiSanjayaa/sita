@@ -117,6 +117,11 @@ class ThesisProject extends Model
             ->where('type', 'sidang');
     }
 
+    public function latestSidangDefense(): HasOne
+    {
+        return $this->sidangDefenses()->one()->ofMany(['attempt_no' => 'max'], fn (Builder $query): Builder => $query->where('type', 'sidang'));
+    }
+
     public function passedSemproDefenses(): HasMany
     {
         return $this->hasMany(ThesisDefense::class, 'project_id')

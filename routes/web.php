@@ -9,6 +9,8 @@ use App\Http\Controllers\File\ThesisDocumentDownloadController;
 use App\Http\Controllers\PortalController;
 use App\Http\Controllers\ProfileShowController;
 use App\Http\Controllers\RoleSwitchController;
+use App\Http\Controllers\SidangPaperController;
+use App\Http\Controllers\SidangReportController;
 use App\Http\Controllers\StudentProgressController;
 use App\Http\Controllers\WelcomeController;
 use Illuminate\Support\Facades\Route;
@@ -33,6 +35,10 @@ Route::middleware(['auth'])->group(function () {
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/defenses/{defense}/berita-acara', [SidangPaperController::class, 'print'])->name('sidang.paper.print');
+    Route::get('/defenses/{defense}/berkas-sidang', [SidangPaperController::class, 'show'])->name('sidang.paper.show');
+    Route::post('/defenses/{defense}/berkas-sidang', [SidangPaperController::class, 'store'])->name('sidang.paper.store');
+    Route::match(['get', 'post'], '/rekap-nilai-sidang', SidangReportController::class)->name('sidang.report');
     Route::redirect('edit-profile', '/settings/profile')->name('edit-profile');
     Route::redirect('settings', '/settings/profile');
 

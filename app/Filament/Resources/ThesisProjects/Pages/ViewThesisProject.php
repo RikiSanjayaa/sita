@@ -10,6 +10,7 @@ use App\Services\LecturerSearchService;
 use App\Services\MentorshipProgressService;
 use App\Services\ThesisProjectAdminService;
 use App\Support\AcademicTerminology;
+use App\Support\SidangSettings;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Forms\Components\DatePicker;
@@ -26,6 +27,7 @@ use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Support\Enums\Alignment;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 
 class ViewThesisProject extends ViewRecord
 {
@@ -38,6 +40,7 @@ class ViewThesisProject extends ViewRecord
         /** @var ThesisProject $record */
         $record = $this->record;
         $terms = AcademicTerminology::forProject($record);
+        $minimumPaperExaminers = SidangSettings::minimumPaperExaminers($record->programStudi);
 
         $workflowActions = [
             Action::make('approve_title')
@@ -375,6 +378,8 @@ class ViewThesisProject extends ViewRecord
                     : 'Jadwalkan '.$terms['finalExam'])
                 ->icon('heroicon-m-clipboard-document-check')
                 ->color('warning')
+                ->modalSubmitActionLabel('Simpan Jadwal')
+                ->modalCancelActionLabel('Batal')
                 ->visible(fn(): bool => $this->canScheduleDefense($record, 'sidang'))
                 ->form([
                     Callout::make('Bimbingan belum memenuhi minimal')
@@ -428,6 +433,8 @@ class ViewThesisProject extends ViewRecord
                         ->default(fn(): string => $this->activeSupervisorSummary($record) ?: 'Belum ada pembimbing aktif')
                         ->disabled()
                         ->dehydrated(false)
+                        ->helperText(fn (): ?string => $minimumPaperExaminers > 0 && $this->requiredSidangPanelUserIds($record) === []
+                            ? 'Tetapkan minimal satu pembimbing aktif agar nilai dari berkas bisa direkap.' : null)
                         ->rows(2),
                     Select::make('additional_examiner_user_ids')
                         ->label('Dosen Penguji '.$terms['finalExam'])
@@ -438,16 +445,34 @@ class ViewThesisProject extends ViewRecord
                         ->multiple()
                         ->default(fn(): array => $this->defaultSidangAdditionalExaminerUserIds($record))
                         ->searchable()
-                        ->getSearchResultsUsing(fn(string $search): array => app(LecturerSearchService::class)->filamentOptions($record, $search, 'examiner'))
+                        ->getSearchResultsUsing(fn (string $search): array => array_diff_key(
+                            app(LecturerSearchService::class)->filamentOptions($record, $search, 'examiner'),
+                            array_flip($this->requiredSidangPanelUserIds($record)),
+                        ))
                         ->getOptionLabelsUsing(fn(array $values): array => app(LecturerSearchService::class)->filamentOptionLabels($record, $values, 'examiner'))
                         ->searchPrompt('Ketik minimal 2 karakter untuk mencari dosen')
+                        ->live()
                         ->required()
-                        ->minItems(fn(): int => $this->requiredSidangPanelUserIds($record) === [] ? 2 : 1)
-                        ->helperText(
-                            $this->requiredSidangPanelUserIds($record) === []
-                                ? 'Belum ada pembimbing aktif. Pilih minimal dua dosen sebagai panel '.$terms['finalExamShort'].'.'
-                                : 'Pembimbing aktif otomatis masuk panel '.$terms['finalExamShort'].'. Pilih minimal satu dosen penguji tambahan.'
-                        )
+                        ->minItems(fn(): int => $minimumPaperExaminers ?: ($this->requiredSidangPanelUserIds($record) === [] ? 2 : 1))
+                        ->validationMessages($minimumPaperExaminers > 0
+                            ? ['min' => 'Pilih minimal '.$minimumPaperExaminers.' dosen penguji selain pembimbing.'] : [])
+                        ->helperText(function (Select $component) use ($minimumPaperExaminers, $record, $terms): ?string {
+                            if ($this->getErrorBag()->has($component->getStatePath())) {
+                                return null;
+                            }
+                            $supervisors = $this->requiredSidangPanelUserIds($record);
+                            if ($minimumPaperExaminers === 0) {
+                                return $supervisors === []
+                                    ? 'Belum ada pembimbing aktif. Pilih minimal dua dosen sebagai panel '.$terms['finalExamShort'].'.'
+                                    : 'Pembimbing aktif otomatis masuk panel '.$terms['finalExamShort'].'. Pilih minimal satu dosen penguji tambahan.';
+                            }
+                            $selected = array_diff(array_unique(array_map('intval', $component->getState() ?? [])), $supervisors);
+                            $count = count($selected);
+                            $missing = $minimumPaperExaminers - $count;
+
+                            return $count.' dari minimal '.$minimumPaperExaminers.' penguji.'
+                                .($missing > 0 ? ' Tambahkan '.$missing.' penguji.' : '');
+                        })
                         ->native(false),
                     Textarea::make('notes')
                         ->label('Catatan')
@@ -461,6 +486,11 @@ class ViewThesisProject extends ViewRecord
                     }
 
                     try {
+                        $supervisors = $this->requiredSidangPanelUserIds($record);
+                        $examiners = array_map('intval', $data['additional_examiner_user_ids']);
+                        if (array_intersect($supervisors, $examiners) !== []) {
+                            throw new \RuntimeException('Pembimbing aktif sudah menjadi bagian dari panel.');
+                        }
                         $scheduledFor = $data['scheduled_starts_on'].' '.$data['scheduled_at_time'];
                         $scheduledUntil = filled($data['scheduled_ends_on'] ?? null)
                             ? $data['scheduled_ends_on'].' '.$data['scheduled_at_time']
@@ -472,10 +502,7 @@ class ViewThesisProject extends ViewRecord
                             scheduledFor: $scheduledFor,
                             location: (string) $data['location'],
                             mode: (string) $data['mode'],
-                            panelUserIds: array_merge(
-                                $this->requiredSidangPanelUserIds($record),
-                                array_map(static fn($id): int => (int) $id, $data['additional_examiner_user_ids'] ?? []),
-                            ),
+                            panelUserIds: array_merge($supervisors, $examiners),
                             notes: $data['notes'] ?? null,
                             scheduledUntil: $scheduledUntil,
                         );
@@ -486,12 +513,10 @@ class ViewThesisProject extends ViewRecord
                             ->send();
 
                         $this->redirect(ThesisProjectResource::getUrl('view', ['record' => $record->getKey()]));
-                    } catch (\Throwable $exception) {
-                        Notification::make()
-                            ->title('Gagal menjadwalkan '.$terms['finalExamShort'])
-                            ->body($exception->getMessage())
-                            ->danger()
-                            ->send();
+                    } catch (\RuntimeException $exception) {
+                        throw ValidationException::withMessages([
+                            $this->getMountedActionSchema()->getStatePath().'.additional_examiner_user_ids' => $exception->getMessage(),
+                        ]);
                     }
                 }),
             Action::make('complete_sidang')
@@ -502,6 +527,7 @@ class ViewThesisProject extends ViewRecord
                 ->disabled(fn(): bool => $this->latestSidang($record)?->status !== 'awaiting_finalization')
                 ->tooltip(fn(): ?string => $this->completeSidangTooltip($record))
                 ->modalSubmitActionLabel('Tinjau hasil akhir')
+                ->modalCancelActionLabel('Batal')
                 ->before(fn(Action $action, array $arguments) => $this->confirmFinalResult($action, $arguments))
                 ->registerModalActions([$this->finalResultConfirmation($record, 'sidang')])
                 ->form([
@@ -638,6 +664,13 @@ class ViewThesisProject extends ViewRecord
                     ]),
                     TextEntry::make('result_summary')->label('Hasil akhir')
                         ->state($result === 'fail' ? 'Tidak Lulus' : ($type === 'sidang' && $result === 'pass_with_revision' ? 'Lulus dengan Syarat' : 'Lulus')),
+                    TextEntry::make('paper_score')->label('Nilai akhir')
+                        ->visible($type === 'sidang' && app(\App\Services\SidangScoreService::class)->summary($defense) !== null)
+                        ->state(function () use ($defense): string {
+                            $summary = app(\App\Services\SidangScoreService::class)->summary($defense);
+
+                            return $summary['value'].' · '.$summary['grade'];
+                        }),
                     TextEntry::make('deadline_summary')->label('Batas revisi (WITA)')
                         ->visible($result === 'pass_with_revision')
                         ->state(filled($data['revision_due_at'] ?? null) ? \Carbon\Carbon::parse($data['revision_due_at'])->format('d/m/Y H:i') : '-'),

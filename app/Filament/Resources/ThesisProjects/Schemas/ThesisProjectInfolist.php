@@ -297,6 +297,7 @@ class ThesisProjectInfolist
                 TableColumn::make('Lokasi'),
                 TableColumn::make('Mode'),
                 TableColumn::make('Penguji'),
+                ...($type === 'sidang' ? [TableColumn::make('Berkas')] : []),
             ])
             ->schema([
                 TextEntry::make('attempt'),
@@ -312,6 +313,9 @@ class ThesisProjectInfolist
                 TextEntry::make('location'),
                 TextEntry::make('mode'),
                 TextEntry::make('examiners')->listWithLineBreaks(),
+                ...($type === 'sidang' ? [TextEntry::make('paper_url')
+                    ->formatStateUsing(fn (): string => 'Kelola berkas sidang')
+                    ->url(fn (?string $state): ?string => $state)] : []),
             ])
             ->contained(false);
     }
@@ -740,6 +744,7 @@ class ThesisProjectInfolist
             ->sortBy('attempt_no')
             ->map(fn(ThesisDefense $defense): array => [
                 'attempt' => '#'.$defense->attempt_no,
+                'paper_url' => $defense->type === 'sidang' ? route('sidang.paper.show', $defense) : null,
                 'status' => self::defenseStatusLabel($defense->status),
                 'result' => self::defenseResultLabel($defense->result, $type),
                 'scheduled_for' => self::formatDefenseSchedule($defense),
@@ -751,7 +756,9 @@ class ThesisProjectInfolist
                         '%s - %s - %s%s',
                         $examiner->lecturer?->name ?? '-',
                         self::defenseRoleLabel($examiner->role, $examiner->order_no),
-                        self::examinerDecisionLabel($examiner->decision),
+                        $defense->type === 'sidang' && $examiner->decision === 'pending' && $examiner->score !== null
+                            ? ($examiner->score_source === 'paper' ? 'Nilai dari berkas' : 'Nilai tercatat')
+                            : self::examinerDecisionLabel($examiner->decision),
                         $examiner->score !== null ? sprintf(' - Nilai %s', $examiner->score) : '',
                     ))
                     ->values()

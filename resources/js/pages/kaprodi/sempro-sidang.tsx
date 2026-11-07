@@ -3,6 +3,7 @@ import {
     CalendarClock,
     CheckCircle2,
     Clock,
+    Download,
     Eye,
     FileWarning,
     Inbox,
@@ -10,6 +11,7 @@ import {
     MoreHorizontal,
     Pencil,
     Plus,
+    Printer,
     Star,
     User,
     XCircle,
@@ -82,6 +84,8 @@ import {
     type AcademicTerminology,
 } from '@/lib/academic-terminology';
 import { cn } from '@/lib/utils';
+import { report } from '@/routes/sidang';
+import { show as showSidangPaper } from '@/routes/sidang/paper';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 
 type ProgramStudi = {
@@ -108,6 +112,8 @@ type ExamRow = {
     averageScore: number | null;
     scoreRequired: boolean;
     grade: string | null;
+    paperRecorded: boolean;
+    readyForReport: boolean;
     student: string;
     terminology: AcademicTerminology;
     nim: string | null;
@@ -169,7 +175,10 @@ type SemproSidangProps = {
     programStudi: ProgramStudi;
     exams: ExamRow[];
     schedulableProjects: SchedulableProject[];
+    minimumPaperExaminers: number;
     calendarEvents: BimbinganEvent[];
+    reportPeriods: { id: number; label: string; range: string }[];
+    activeReportPeriodId: number | null;
 };
 
 type TypeFilter = 'semua' | 'sempro' | 'sidang';
@@ -291,8 +300,16 @@ function DecisionBadge({ decision }: { decision: string }) {
 }
 
 export default function KaprodiSemproSidangPage() {
-    const { auth, programStudi, exams, schedulableProjects, calendarEvents } =
-        usePage<SharedData & SemproSidangProps>().props;
+    const {
+        auth,
+        programStudi,
+        exams,
+        schedulableProjects,
+        minimumPaperExaminers,
+        calendarEvents,
+        reportPeriods,
+        activeReportPeriodId,
+    } = usePage<SharedData & SemproSidangProps>().props;
     const terms = neutralAcademicTerminology;
     const canScheduleSempro = auth.kaprodiCapabilities?.schedule_sempro ?? true;
     const canScheduleSidang = auth.kaprodiCapabilities?.schedule_sidang ?? true;
@@ -307,6 +324,10 @@ export default function KaprodiSemproSidangPage() {
     );
     const pageState = useUrlState('page', 1);
     const [selected, setSelected] = useState<ExamRow | null>(null);
+    const [showReport, setShowReport] = useState(false);
+    const [reportPeriod, setReportPeriod] = useState(
+        activeReportPeriodId === null ? '' : String(activeReportPeriodId),
+    );
     const [selectedEvent, setSelectedEvent] = useState<BimbinganEvent | null>(
         null,
     );
@@ -463,6 +484,16 @@ export default function KaprodiSemproSidangPage() {
                                     Jadwalkan {terms.finalExam}
                                 </Button>
                             ) : null}
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="max-md:h-11 max-md:flex-1"
+                                onClick={() => setShowReport(true)}
+                            >
+                                <Download className="size-4" aria-hidden />{' '}
+                                Rekap Nilai Sidang
+                            </Button>
                         </DataToolbar>
 
                         <div className="flex flex-col gap-y-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3 sm:gap-y-2">
@@ -731,6 +762,28 @@ export default function KaprodiSemproSidangPage() {
                                                                 Lihat detail
                                                                 ujian
                                                             </DropdownMenuItem>
+                                                            {item.typeKey ===
+                                                                'sidang' &&
+                                                                item.statusKey !==
+                                                                    'cancelled' && (
+                                                                    <DropdownMenuItem
+                                                                        asChild
+                                                                    >
+                                                                        <Link
+                                                                            href={
+                                                                                showSidangPaper(
+                                                                                    item.id,
+                                                                                )
+                                                                                    .url
+                                                                            }
+                                                                        >
+                                                                            <Printer className="size-4" />
+                                                                            Kelola
+                                                                            berkas
+                                                                            sidang
+                                                                        </Link>
+                                                                    </DropdownMenuItem>
+                                                                )}
                                                             <DropdownMenuItem
                                                                 asChild
                                                             >
@@ -757,6 +810,106 @@ export default function KaprodiSemproSidangPage() {
                 </DataSection>
             </div>
 
+            <Dialog open={showReport} onOpenChange={setShowReport}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Rekap Nilai Sidang</DialogTitle>
+                        <DialogDescription>
+                            File mengikuti filter daftar ujian dan memuat hasil
+                            sidang lulus yang sudah dikonfirmasi dari berkas.
+                            Periode dihitung dari tanggal sidang dalam WITA.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <form
+                        method="post"
+                        action={report.url()}
+                        className="space-y-4"
+                    >
+                        <input
+                            type="hidden"
+                            name="_token"
+                            value={
+                                typeof document === 'undefined'
+                                    ? ''
+                                    : (document.querySelector<HTMLMetaElement>(
+                                          'meta[name="csrf-token"]',
+                                      )?.content ?? '')
+                            }
+                        />
+                        <input
+                            type="hidden"
+                            name="ids"
+                            value={
+                                filtered
+                                    .filter((exam) => exam.readyForReport)
+                                    .map((exam) => exam.id)
+                                    .join(',') || '0'
+                            }
+                        />
+                        {reportPeriods.length > 0 && (
+                            <label className="block space-y-1 text-sm font-medium">
+                                Periode rekap
+                                <select
+                                    name="period_id"
+                                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                                    value={reportPeriod}
+                                    onChange={(event) =>
+                                        setReportPeriod(event.target.value)
+                                    }
+                                >
+                                    <option value="">
+                                        Rentang tanggal manual
+                                    </option>
+                                    {reportPeriods.map((period) => (
+                                        <option
+                                            key={period.id}
+                                            value={period.id}
+                                        >
+                                            {period.label} ({period.range})
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+                        )}
+                        {reportPeriod === '' && (
+                            <>
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                    <label className="space-y-1 text-sm font-medium">
+                                        Dari tanggal
+                                        <Input
+                                            type="date"
+                                            name="from"
+                                            required
+                                        />
+                                    </label>
+                                    <label className="space-y-1 text-sm font-medium">
+                                        Sampai tanggal
+                                        <Input
+                                            type="date"
+                                            name="until"
+                                            required
+                                        />
+                                    </label>
+                                </div>
+                                <label className="block space-y-1 text-sm font-medium">
+                                    Nama periode
+                                    <Input
+                                        name="period"
+                                        placeholder="Contoh: Ganjil 2026/2027"
+                                        maxLength={80}
+                                    />
+                                </label>
+                            </>
+                        )}
+                        <DialogFooter>
+                            <Button type="submit">
+                                <Download className="size-4" aria-hidden />{' '}
+                                Unduh Excel
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
             <ExamDetailSheet
                 item={selected}
                 open={selected !== null}
@@ -775,6 +928,7 @@ export default function KaprodiSemproSidangPage() {
             <ScheduleDialog
                 state={scheduleDialog}
                 projects={schedulableProjects}
+                minimumPaperExaminers={minimumPaperExaminers}
                 open={scheduleDialog !== null}
                 onOpenChange={(open) => {
                     if (!open) setScheduleDialog(null);
@@ -903,6 +1057,32 @@ function ExamDetailSheet({
                                 />
                             </div>
                         </div>
+                        {item.typeKey === 'sidang' && (
+                            <div className="flex flex-wrap items-center gap-2">
+                                <Button asChild variant="outline">
+                                    <Link href={showSidangPaper(item.id).url}>
+                                        <Printer
+                                            className="size-4"
+                                            aria-hidden
+                                        />{' '}
+                                        Kelola Berkas Sidang
+                                    </Link>
+                                </Button>
+                                {item.readyForReport && (
+                                    <Badge variant="secondary">
+                                        Siap Direkap
+                                    </Badge>
+                                )}
+                                {item.paperRecorded &&
+                                    !item.readyForReport &&
+                                    item.statusKey ===
+                                        'awaiting_finalization' && (
+                                        <Badge variant="outline">
+                                            Nilai Berkas Tersimpan
+                                        </Badge>
+                                    )}
+                            </div>
+                        )}
                         <DefenseRevisionLog log={item.revisionLog} />
                     </div>
                 </ScrollArea>
@@ -914,11 +1094,13 @@ function ExamDetailSheet({
 function ScheduleDialog({
     state,
     projects,
+    minimumPaperExaminers,
     open,
     onOpenChange,
 }: {
     state: ScheduleDialogState | null;
     projects: SchedulableProject[];
+    minimumPaperExaminers: number;
     open: boolean;
     onOpenChange: (open: boolean) => void;
 }) {
@@ -1004,10 +1186,33 @@ function ScheduleDialog({
         errors.scheduled_date_start ??
         errors.scheduled_date_end ??
         errors.scheduled_for;
+    const needsPaperPanel =
+        activeState.type === 'sidang' && minimumPaperExaminers > 0;
+    const supervisorIds =
+        currentProject?.supervisors.map((supervisor) =>
+            String(supervisor.id),
+        ) ?? [];
+    const examinerCount = new Set(
+        form.data.additional_examiner_user_ids.filter(
+            (id) => !supervisorIds.includes(id),
+        ),
+    ).size;
+    const missingPaperSupervisor =
+        needsPaperPanel && supervisorIds.length === 0;
+    const missingExaminers = minimumPaperExaminers - examinerCount;
+    const panelBlockReason =
+        needsPaperPanel && currentProject
+            ? missingPaperSupervisor
+                ? 'Tetapkan minimal satu pembimbing aktif.'
+                : missingExaminers > 0
+                  ? `Tambahkan ${missingExaminers} penguji (${examinerCount}/${minimumPaperExaminers}).`
+                  : null
+            : null;
     const submitDisabled =
         form.processing ||
         form.data.project_id === '' ||
-        Boolean(currentProjectScheduleBlockedReason);
+        Boolean(currentProjectScheduleBlockedReason) ||
+        Boolean(panelBlockReason);
 
     function submit() {
         const projectId = Number(form.data.project_id);
@@ -1268,27 +1473,34 @@ function ScheduleDialog({
                             </div>
                         </div>
                     ) : (
-                        <LecturerMultiSearch
-                            label={`Penguji ${terms?.finalExam ?? neutralAcademicTerminology.finalExam} Tambahan`}
-                            values={form.data.additional_examiner_user_ids}
-                            onChange={(values) =>
-                                form.setData(
-                                    'additional_examiner_user_ids',
-                                    values,
-                                )
-                            }
-                            projectId={Number(form.data.project_id) || null}
-                            purpose="examiner"
-                            excludeIds={
-                                currentProject?.supervisors.map((supervisor) =>
-                                    String(supervisor.id),
-                                ) ?? []
-                            }
-                            error={
-                                (form.errors as Record<string, string>)
-                                    .additional_examiner_user_ids
-                            }
-                        />
+                        <div className="grid gap-2">
+                            <LecturerMultiSearch
+                                label={`Penguji ${terms?.finalExam ?? neutralAcademicTerminology.finalExam} Tambahan`}
+                                values={form.data.additional_examiner_user_ids}
+                                onChange={(values) =>
+                                    form.setData(
+                                        'additional_examiner_user_ids',
+                                        values,
+                                    )
+                                }
+                                projectId={Number(form.data.project_id) || null}
+                                purpose="examiner"
+                                excludeIds={supervisorIds}
+                                error={
+                                    (form.errors as Record<string, string>)
+                                        .additional_examiner_user_ids
+                                }
+                            />
+                            {needsPaperPanel && currentProject ? (
+                                <p
+                                    className="text-xs text-muted-foreground"
+                                    aria-live="polite"
+                                >
+                                    {examinerCount} dari minimal{' '}
+                                    {minimumPaperExaminers} penguji
+                                </p>
+                            ) : null}
+                        </div>
                     )}
 
                     {activeState.type === 'sidang' ? (
@@ -1312,6 +1524,15 @@ function ScheduleDialog({
                 </div>
 
                 <DialogFooter>
+                    {needsPaperPanel && (
+                        <p
+                            id={`${fieldId}-panel-status`}
+                            aria-live="polite"
+                            className="self-center text-sm text-warning-muted-foreground empty:hidden max-sm:order-last sm:me-auto"
+                        >
+                            {panelBlockReason}
+                        </p>
+                    )}
                     <Button
                         type="button"
                         variant="outline"
@@ -1322,6 +1543,11 @@ function ScheduleDialog({
                     <Button
                         type="button"
                         disabled={submitDisabled}
+                        aria-describedby={
+                            panelBlockReason
+                                ? `${fieldId}-panel-status`
+                                : undefined
+                        }
                         onClick={submit}
                     >
                         Simpan Jadwal

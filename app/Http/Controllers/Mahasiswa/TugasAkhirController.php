@@ -13,6 +13,7 @@ use App\Models\ThesisRevision;
 use App\Models\ThesisRevisionRound;
 use App\Models\User;
 use App\Services\MentorshipProgressService;
+use App\Services\SidangScoreService;
 use App\Services\ThesisProjectNoteService;
 use App\Services\ThesisProjectStudentService;
 use App\Services\ThesisProjectWorkflowResolver;
@@ -368,6 +369,8 @@ class TugasAkhirController extends Controller
 
         return [
             'label' => $label,
+            'paperScore' => app(SidangScoreService::class)->summary($defense)['value'] ?? null,
+            'paperGrade' => app(SidangScoreService::class)->summary($defense)['grade'] ?? null,
             'resultLabel' => match ($defense->result) {
                 'pass' => 'Lulus',
                 'pass_with_revision' => $defense->type === 'sidang' ? 'Lulus dengan Syarat' : 'Lulus',
@@ -386,7 +389,8 @@ class TugasAkhirController extends Controller
                         'pass' => 'Lulus',
                         'pass_with_revision' => $defense->type === 'sidang' ? 'Lulus dengan Syarat' : 'Lulus',
                         'fail' => 'Tidak Lulus',
-                        default => 'Belum Ada Keputusan',
+                        default => $defense->type === 'sidang' && $examiner->score !== null
+                            ? ($examiner->score_source === 'paper' ? 'Nilai dari berkas' : 'Nilai tercatat') : 'Belum Ada Keputusan',
                     },
                     'score' => $examiner->score,
                     'decisionNotes' => $examiner->notes,
@@ -436,6 +440,8 @@ class TugasAkhirController extends Controller
                 return [
                     'id' => $defense->id,
                     'attemptNo' => $defense->attempt_no,
+                    'paperScore' => $defense->status === 'completed' ? (app(SidangScoreService::class)->summary($defense)['value'] ?? null) : null,
+                    'paperGrade' => $defense->status === 'completed' ? (app(SidangScoreService::class)->summary($defense)['grade'] ?? null) : null,
                     'statusLabel' => match ($defense->status) {
                         'draft' => 'Draft',
                         'scheduled' => 'Dijadwalkan',
@@ -476,7 +482,8 @@ class TugasAkhirController extends Controller
                                 'pass' => 'Lulus',
                                 'pass_with_revision' => $defense->type === 'sidang' ? 'Lulus dengan Syarat' : 'Lulus',
                                 'fail' => 'Tidak Lulus',
-                                default => 'Belum Ada Keputusan',
+                                default => $defense->type === 'sidang' && $examiner->score !== null
+                                    ? ($examiner->score_source === 'paper' ? 'Nilai dari berkas' : 'Nilai tercatat') : 'Belum Ada Keputusan',
                             },
                             'score' => $defense->examinersVisibleToStudent() ? $examiner->score : null,
                             'decisionNotes' => $defense->examinersVisibleToStudent() ? $examiner->notes : null,

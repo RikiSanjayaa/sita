@@ -633,6 +633,7 @@ test.describe('conditional Sidang recovery', () => {
         const budi = await lecturer('dosen1');
         const ratna = await lecturer('dosen2');
         const fajar = await lecturer('dosen5');
+        const ahmad = await lecturer('dosen3');
         const publicContext = await browser.newContext();
         const publicPage = await publicContext.newPage();
         const revision = {
@@ -677,6 +678,7 @@ test.describe('conditional Sidang recovery', () => {
                 for (const member of [
                     { page: budi, score: '88' },
                     { page: ratna, score: '90' },
+                    { page: ahmad, score: '87' },
                 ]) {
                     await openRecoveryDefense(
                         member.page,
@@ -1010,6 +1012,7 @@ for (const type of ['sempro', 'sidang'] as const) {
                           await lecturer('dosen1'),
                           await lecturer('dosen2'),
                           await lecturer('dosen5'),
+                          await lecturer('dosen3'),
                       ];
             const failedReason = `${label} tidak lulus; evaluasi dan pembahasan belum memenuhi standar.`;
             const location = `Ruang ${label} Ulang Pemulihan`;
@@ -1114,7 +1117,10 @@ for (const type of ['sempro', 'sidang'] as const) {
                     }
                 }
                 await schedule
-                    .getByRole('button', { name: 'Submit', exact: true })
+                    .getByRole('button', {
+                        name: type === 'sidang' ? 'Simpan Jadwal' : 'Submit',
+                        exact: true,
+                    })
                     .click();
                 await expect(schedule).toBeHidden();
                 await student.goto('/mahasiswa/tugas-akhir');
