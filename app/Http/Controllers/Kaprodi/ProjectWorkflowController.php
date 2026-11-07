@@ -127,6 +127,12 @@ class ProjectWorkflowController extends Controller
             ->map(static fn($id): int => (int) $id)
             ->values()
             ->all();
+        $examinerIds = array_map('intval', $request->validated('additional_examiner_user_ids'));
+        if (array_intersect($supervisorIds, $examinerIds) !== []) {
+            throw ValidationException::withMessages([
+                'additional_examiner_user_ids' => 'Pembimbing aktif sudah menjadi bagian dari panel.',
+            ]);
+        }
         $scheduledFor = $this->scheduledForFromDefenseRequest($request);
         $scheduledUntil = $this->scheduledUntilFromDefenseRequest($request);
         $mentorshipPayload = $this->mentorshipProgressService->auditPayload($project);
@@ -138,10 +144,7 @@ class ProjectWorkflowController extends Controller
                 scheduledFor: $scheduledFor,
                 location: (string) $request->validated('location'),
                 mode: (string) $request->validated('mode'),
-                panelUserIds: array_values(array_unique(array_merge(
-                    $supervisorIds,
-                    array_map(static fn($id): int => (int) $id, $request->validated('additional_examiner_user_ids')),
-                ))),
+                panelUserIds: array_merge($supervisorIds, $examinerIds),
                 notes: $request->validated('notes'),
                 scheduledUntil: $scheduledUntil,
             );
@@ -163,7 +166,7 @@ class ProjectWorkflowController extends Controller
                 'location' => $request->validated('location'),
                 'mode' => $request->validated('mode'),
                 'supervisor_user_ids' => $supervisorIds,
-                'additional_examiner_user_ids' => array_map(static fn($id): int => (int) $id, $request->validated('additional_examiner_user_ids')),
+                'additional_examiner_user_ids' => $examinerIds,
                 ...$mentorshipPayload,
             ],
         );

@@ -10,7 +10,7 @@ final class SidangSettings
 {
     public static function minimumPaperExaminers(?ProgramStudi $program): int
     {
-        return $program?->slug === 'ilkom' ? 2 : 0;
+        return (int) ($program?->sidang_settings['minimum_paper_examiners'] ?? 0);
     }
 
     public const GRADES = ['A', 'B+', 'B', 'C+', 'C', 'D'];
@@ -18,6 +18,7 @@ final class SidangSettings
     public const GRADE_KEYS = ['a', 'b_plus', 'b', 'c_plus', 'c', 'd'];
 
     public const DEFAULTS = [
+        'minimum_paper_examiners' => 0,
         'examiner_1' => 30, 'examiner_2' => 30, 'supervisor' => 40,
         'a' => 81, 'b_plus' => 71, 'b' => 66, 'c_plus' => 61, 'c' => 50, 'd' => 30,
         'city' => 'Mataram', 'heading' => 'Universitas Bumigora',
@@ -34,19 +35,22 @@ final class SidangSettings
     public static function validate(array $settings): void
     {
         $keys = [...self::GRADE_KEYS, 'examiner_1', 'examiner_2', 'supervisor'];
-        Validator::make($settings, array_fill_keys($keys, 'required|integer|min:1|max:100'))->validate();
+        Validator::make($settings, [
+            ...array_fill_keys($keys, 'required|integer|min:1|max:100'),
+            'minimum_paper_examiners' => 'nullable|integer|min:0',
+        ])->validate();
         if (array_sum(array_intersect_key($settings, array_flip(['examiner_1', 'examiner_2', 'supervisor']))) !== 100) {
-            throw ValidationException::withMessages(['data.sidang_settings.supervisor' => 'Total bobot ketiga penilai harus 100%.']);
+            throw ValidationException::withMessages(['supervisor' => 'Total bobot ketiga penilai harus 100%.']);
         }
         $thresholds = array_map(fn ($key) => (int) $settings[$key], self::GRADE_KEYS);
         $descending = $thresholds;
         rsort($descending);
         if ($thresholds !== $descending || count(array_unique($thresholds)) !== count($thresholds)) {
-            throw ValidationException::withMessages(['data.sidang_settings.a' => 'Batas nilai huruf harus berurutan dari tertinggi ke terendah.']);
+            throw ValidationException::withMessages(['a' => 'Batas nilai huruf harus berurutan dari tertinggi ke terendah.']);
         }
         foreach (['examiner_rubric', 'supervisor_rubric'] as $key) {
             if (self::rubric($settings[$key] ?? '') === []) {
-                throw ValidationException::withMessages(["data.sidang_settings.$key" => 'Gunakan format Komponen | Bobot. Total bobot harus 100%.']);
+                throw ValidationException::withMessages([$key => 'Gunakan format Komponen | Bobot. Total bobot harus 100%.']);
             }
         }
     }

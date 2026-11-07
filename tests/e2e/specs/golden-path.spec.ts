@@ -904,7 +904,7 @@ test.describe('Golden path: from title proposal to graduation', () => {
                     .getByRole('button', { name: lecturers.fajar.name })
                     .click();
                 await expect(
-                    dialog.getByText(/1 penguji dipilih/),
+                    dialog.getByText('1 dari minimal 2 penguji'),
                 ).toBeVisible();
                 await expect(
                     dialog.getByRole('button', { name: 'Simpan Jadwal' }),

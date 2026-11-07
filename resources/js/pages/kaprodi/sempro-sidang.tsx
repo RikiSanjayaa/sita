@@ -1199,12 +1199,20 @@ function ScheduleDialog({
     ).size;
     const missingPaperSupervisor =
         needsPaperPanel && supervisorIds.length === 0;
+    const missingExaminers = minimumPaperExaminers - examinerCount;
+    const panelBlockReason =
+        needsPaperPanel && currentProject
+            ? missingPaperSupervisor
+                ? 'Tetapkan minimal satu pembimbing aktif.'
+                : missingExaminers > 0
+                  ? `Tambahkan ${missingExaminers} penguji (${examinerCount}/${minimumPaperExaminers}).`
+                  : null
+            : null;
     const submitDisabled =
         form.processing ||
         form.data.project_id === '' ||
         Boolean(currentProjectScheduleBlockedReason) ||
-        (needsPaperPanel &&
-            (missingPaperSupervisor || examinerCount < minimumPaperExaminers));
+        Boolean(panelBlockReason);
 
     function submit() {
         const projectId = Number(form.data.project_id);
@@ -1488,9 +1496,8 @@ function ScheduleDialog({
                                     className="text-xs text-muted-foreground"
                                     aria-live="polite"
                                 >
-                                    {missingPaperSupervisor
-                                        ? 'Tetapkan minimal satu pembimbing aktif agar nilai dari berkas bisa direkap.'
-                                        : `Pilih minimal dua dosen penguji selain pembimbing agar nilai dari berkas bisa direkap. ${examinerCount} penguji dipilih.`}
+                                    {examinerCount} dari minimal{' '}
+                                    {minimumPaperExaminers} penguji
                                 </p>
                             ) : null}
                         </div>
@@ -1517,6 +1524,15 @@ function ScheduleDialog({
                 </div>
 
                 <DialogFooter>
+                    {needsPaperPanel && (
+                        <p
+                            id={`${fieldId}-panel-status`}
+                            aria-live="polite"
+                            className="self-center text-sm text-warning-muted-foreground empty:hidden max-sm:order-last sm:me-auto"
+                        >
+                            {panelBlockReason}
+                        </p>
+                    )}
                     <Button
                         type="button"
                         variant="outline"
@@ -1527,6 +1543,11 @@ function ScheduleDialog({
                     <Button
                         type="button"
                         disabled={submitDisabled}
+                        aria-describedby={
+                            panelBlockReason
+                                ? `${fieldId}-panel-status`
+                                : undefined
+                        }
                         onClick={submit}
                     >
                         Simpan Jadwal

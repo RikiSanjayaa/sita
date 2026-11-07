@@ -1050,10 +1050,10 @@ class ThesisProjectAdminService
         $minimumExaminers = SidangSettings::minimumPaperExaminers($project->programStudi);
         if ($minimumExaminers > 0) {
             if ($supervisorIds->isEmpty()) {
-                throw new RuntimeException('Tetapkan minimal satu pembimbing aktif agar nilai dari berkas bisa direkap.');
+                throw new RuntimeException('Tetapkan minimal satu pembimbing aktif sesuai pengaturan prodi.');
             }
             if ($normalizedPanelIds->diff($supervisorIds)->count() < $minimumExaminers) {
-                throw new RuntimeException('Pilih minimal dua dosen penguji selain pembimbing agar nilai dari berkas bisa direkap.');
+                throw new RuntimeException('Pilih minimal '.$minimumExaminers.' dosen penguji selain pembimbing.');
             }
         } elseif ($normalizedPanelIds->count() < 2) {
             throw new RuntimeException('Panel '.$terminology['finalExamShort'].' harus berisi minimal dua dosen yang berbeda.');

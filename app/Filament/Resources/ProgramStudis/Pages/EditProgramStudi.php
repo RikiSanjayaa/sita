@@ -23,6 +23,7 @@ use Filament\Resources\Pages\EditRecord;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\ValidationException;
 
 class EditProgramStudi extends EditRecord
 {
@@ -35,6 +36,8 @@ class EditProgramStudi extends EditRecord
                 ->visible(fn (): bool => app(SidangPaperPolicy::class)->manage(Auth::user(), (int) $this->record->id))
                 ->label('Atur Dokumen dan Nilai Sidang')
                 ->icon('heroicon-m-document-text')
+                ->modalSubmitActionLabel('Simpan Pengaturan')
+                ->modalCancelActionLabel('Batal')
                 ->fillForm(fn (): array => ['sidang_settings' => SidangSettings::forProgram($this->record)])
                 ->schema(fn (Schema $schema): Schema => $schema->columns(2)->components([
                     TextInput::make('sidang_settings.heading')->label('Nama institusi pada kop')->required()->maxLength(100),
@@ -43,6 +46,10 @@ class EditProgramStudi extends EditRecord
                     TextInput::make('sidang_settings.dean_nik')->label('NIK dekan')->maxLength(30),
                     TextInput::make('sidang_settings.staff_name')->label('Nama staf prodi')->maxLength(120),
                     TextInput::make('sidang_settings.staff_nik')->label('NIK staf prodi')->maxLength(30),
+                    TextInput::make('sidang_settings.minimum_paper_examiners')
+                        ->label('Minimal dosen penguji (selain pembimbing)')
+                        ->helperText('Kosong atau 0 memakai aturan panel lama. Angka positif juga mewajibkan satu pembimbing aktif. Rekap nilai dari berkas tetap membutuhkan dua penguji.')
+                        ->integer()->minValue(0)->columnSpanFull(),
                     TextInput::make('sidang_settings.examiner_1')->label('Bobot Penguji 1 (%)')->integer()->minValue(1)->maxValue(100)->required(),
                     TextInput::make('sidang_settings.examiner_2')->label('Bobot Penguji 2 (%)')->integer()->minValue(1)->maxValue(100)->required(),
                     TextInput::make('sidang_settings.supervisor')->label('Bobot Pembimbing Penilai (%)')->integer()->minValue(1)->maxValue(100)->required(),
@@ -51,14 +58,21 @@ class EditProgramStudi extends EditRecord
                         SidangSettings::GRADE_KEYS,
                         SidangSettings::GRADES,
                     ),
-                    Textarea::make('sidang_settings.examiner_rubric')->label('Komponen nilai penguji')->helperText('Satu baris per komponen dengan format Komponen | Bobot.')->rows(7)->maxLength(1500)->required(),
-                    Textarea::make('sidang_settings.supervisor_rubric')->label('Komponen nilai pembimbing')->helperText('Satu baris per komponen dengan format Komponen | Bobot.')->rows(5)->maxLength(1500)->required(),
+                    Textarea::make('sidang_settings.examiner_rubric')->label('Komponen nilai penguji')->helperText('Satu baris per komponen dengan format Komponen | Bobot.')->rows(7)->maxLength(1500)->required()->columnSpanFull(),
+                    Textarea::make('sidang_settings.supervisor_rubric')->label('Komponen nilai pembimbing')->helperText('Satu baris per komponen dengan format Komponen | Bobot.')->rows(5)->maxLength(1500)->required()->columnSpanFull(),
                 ]))
                 ->action(function (array $data): void {
                     abort_unless(app(SidangPaperPolicy::class)->manage(Auth::user(), (int) $this->record->id), 403);
                     $settings = $data['sidang_settings'];
-                    SidangSettings::validate($settings);
-                    $this->record->update(['sidang_settings' => $settings]);
+                    try {
+                        SidangSettings::validate($settings);
+                    } catch (ValidationException $exception) {
+                        $prefix = $this->getMountedActionSchema()->getStatePath().'.sidang_settings.';
+                        throw ValidationException::withMessages(collect($exception->errors())
+                            ->mapWithKeys(fn (array $messages, string $field): array => [$prefix.$field => $messages])->all());
+                    }
+                    $settings['minimum_paper_examiners'] = (int) ($settings['minimum_paper_examiners'] ?? 0);
+                    $this->record->update(['sidang_settings' => array_replace($this->record->sidang_settings ?? [], $settings)]);
                     Notification::make()->title('Pengaturan sidang disimpan')->success()->send();
                 }),
             Action::make('manage_kaprodi')

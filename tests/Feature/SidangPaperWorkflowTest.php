@@ -17,6 +17,7 @@ use App\Services\SidangReportPeriodService;
 use App\Services\SidangReportWriter;
 use App\Services\ThesisProjectAdminService;
 use App\Support\SidangSettings;
+use Database\Seeders\AcademicStructureSeeder;
 use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
 
@@ -59,12 +60,58 @@ it('opens and saves the sidang document and grade settings for a program', funct
         ->setActionData(['sidang_settings' => [
             ...SidangSettings::forProgram($program),
             'city' => 'Kota Uji',
+            'minimum_paper_examiners' => '2',
         ]])
         ->callMountedAction()
         ->assertHasNoActionErrors();
 
-    expect($program->fresh()->sidang_settings['city'])->toBe('Kota Uji');
+    expect($program->fresh()->sidang_settings)
+        ->toMatchArray(['city' => 'Kota Uji', 'minimum_paper_examiners' => 2]);
 });
+
+it('initializes existing Ilkom settings without overwriting other settings or a saved minimum', function (): void {
+    $ilkom = ProgramStudi::factory()->create(['slug' => 'ilkom', 'sidang_settings' => ['city' => 'Kota Uji']]);
+    $other = ProgramStudi::factory()->create(['sidang_settings' => ['city' => 'Kota Lain']]);
+    $migration = require database_path('migrations/2026_11_07_000000_set_initial_sidang_panel_requirement.php');
+    $migration->up();
+
+    expect($ilkom->fresh()->sidang_settings)->toBe(['city' => 'Kota Uji', 'minimum_paper_examiners' => 2])
+        ->and($other->fresh()->sidang_settings)->toBe(['city' => 'Kota Lain']);
+
+    $ilkom->update(['sidang_settings' => ['city' => 'Kota Uji', 'minimum_paper_examiners' => 0]]);
+    $migration->up();
+    expect(SidangSettings::minimumPaperExaminers($ilkom->fresh()))->toBe(0);
+});
+
+it('seeds the initial Ilkom requirement and preserves a later admin choice', function (): void {
+    $this->seed(AcademicStructureSeeder::class);
+    $program = ProgramStudi::query()->where('slug', 'ilkom')->firstOrFail();
+    expect(SidangSettings::minimumPaperExaminers($program))->toBe(2);
+    $program->update(['sidang_settings' => ['minimum_paper_examiners' => 0]]);
+
+    $this->seed(AcademicStructureSeeder::class);
+    expect(SidangSettings::minimumPaperExaminers($program->fresh()))->toBe(0);
+});
+
+it('shows the setting error on the matching field and keeps the modal open', function (array $changes, string $field, string $message): void {
+    $program = ProgramStudi::factory()->create();
+    $this->actingAs(User::factory()->asSuperAdmin()->create());
+
+    $page = Livewire::test(EditProgramStudi::class, ['record' => $program->getRouteKey()])
+        ->mountAction('sidangSettings')
+        ->setActionData(['sidang_settings' => [...SidangSettings::forProgram($program), ...$changes]])
+        ->callMountedAction()
+        ->assertHasActionErrors(['sidang_settings.'.$field])
+        ->assertActionMounted('sidangSettings');
+
+    expect($page->instance()->getErrorBag()->first('mountedActions.0.data.sidang_settings.'.$field))->toContain($message)
+        ->and($program->fresh()->sidang_settings)->toBeNull();
+    $page->assertActionDataSet(['sidang_settings' => [...SidangSettings::forProgram($program), ...$changes]]);
+})->with([
+    'weights' => [['examiner_1' => 40], 'supervisor', 'Total bobot ketiga penilai harus 100%.'],
+    'grade order' => [['b_plus' => 90], 'a', 'Batas nilai huruf harus berurutan dari tertinggi ke terendah.'],
+    'rubric' => [['examiner_rubric' => 'Penguasaan Materi | 60'], 'examiner_rubric', 'Total bobot harus 100%.'],
+]);
 
 it('fills the Word letterhead from the issuing program and faculty', function (): void {
     $faculty = Faculty::factory()->create(['name' => 'Fakultas Ekonomi dan Bisnis', 'code' => 'FEB']);
@@ -84,8 +131,8 @@ it('fills the Word letterhead from the issuing program and faculty', function ()
     }
 });
 
-it('requires the Ilmu Komputer paper panel and completes old schedules without losing scores', function (): void {
-    [$defense] = sidangPaperFixture(ProgramStudi::factory()->create(['slug' => 'ilkom']));
+it('requires the configured paper panel and completes old schedules without losing scores', function (): void {
+    [$defense] = sidangPaperFixture(ProgramStudi::factory()->create(['sidang_settings' => ['minimum_paper_examiners' => 2]]));
     $admin = User::factory()->asSuperAdmin()->create();
     $project = $defense->project;
     $panel = $defense->examiners()->orderBy('order_no')->get();
@@ -108,8 +155,17 @@ it('requires the Ilmu Komputer paper panel and completes old schedules without l
         ->setActionData(['additional_examiner_user_ids' => [$first->lecturer_user_id]])
         ->callMountedAction()
         ->assertHasActionErrors(['additional_examiner_user_ids' => 'min']);
+    $page = Livewire::test(ViewThesisProject::class, ['record' => $project->getRouteKey()])
+        ->mountAction('schedule_sidang')
+        ->setActionData(['additional_examiner_user_ids' => [$supervisor->lecturer_user_id, $first->lecturer_user_id]])
+        ->callMountedAction()
+        ->assertHasActionErrors(['additional_examiner_user_ids'])
+        ->assertActionDataSet(['additional_examiner_user_ids' => [$supervisor->lecturer_user_id, $first->lecturer_user_id]])
+        ->assertActionMounted('schedule_sidang');
+    expect($page->instance()->getErrorBag()->first('mountedActions.0.data.additional_examiner_user_ids'))
+        ->toBe('Pembimbing aktif sudah menjadi bagian dari panel.');
     expect(fn () => $schedule([$supervisor->lecturer_user_id, $first->lecturer_user_id, $supervisor->lecturer_user_id]))
-        ->toThrow(RuntimeException::class, 'Pilih minimal dua dosen penguji selain pembimbing');
+        ->toThrow(RuntimeException::class, 'Pilih minimal 2 dosen penguji selain pembimbing');
     expect($defense->fresh()->scheduled_for->toDateTimeString())->toBe('2026-11-04 23:30:00')
         ->and($defense->examiners()->count())->toBe(2);
 
@@ -117,6 +173,38 @@ it('requires the Ilmu Komputer paper panel and completes old schedules without l
     expect($updated->id)->toBe($defense->id)
         ->and($updated->examiners()->orderBy('order_no')->pluck('role')->all())->toBe(['primary_supervisor', 'examiner', 'examiner'])
         ->and($first->fresh()->score)->toEqual(90);
+});
+
+it('uses the saved minimum at both scheduling entry points and accepts the old panel after it is disabled', function (): void {
+    [$defense, , $program] = sidangPaperFixture();
+    $project = $defense->project;
+    $admin = User::factory()->asSuperAdmin()->create();
+    $head = User::factory()->asKaprodi()->create();
+    KaprodiAssignment::factory()->create(['user_id' => $head->id, 'program_studi_id' => $program->id]);
+    $examiner = $defense->examiners()->where('role', 'examiner')->firstOrFail();
+    $supervisor = $defense->examiners()->where('role', 'primary_supervisor')->firstOrFail();
+    $project->supervisorAssignments()->create([
+        'lecturer_user_id' => $supervisor->lecturer_user_id,
+        'role' => 'primary', 'status' => 'active', 'assigned_by' => $admin->id, 'started_at' => now(),
+    ]);
+    $data = [
+        'scheduled_for' => '2026-11-06 10:00:00', 'location' => 'Ruang Sidang Uji', 'mode' => 'offline',
+        'additional_examiner_user_ids' => [$examiner->lecturer_user_id],
+    ];
+
+    $program->update(['sidang_settings' => ['minimum_paper_examiners' => 2]]);
+    $this->actingAs($head)->post(route('kaprodi.projects.sidang', $project), $data)
+        ->assertSessionHasErrors(['additional_examiner_user_ids' => 'Pilih minimal 2 dosen penguji selain pembimbing.']);
+
+    $program->update(['sidang_settings' => ['minimum_paper_examiners' => 0]]);
+    $this->post(route('kaprodi.projects.sidang', $project), $data)->assertSessionHasNoErrors();
+    $this->actingAs($admin);
+    Livewire::test(ViewThesisProject::class, ['record' => $project->getRouteKey()])
+        ->mountAction('schedule_sidang')
+        ->setActionData(['additional_examiner_user_ids' => [$examiner->lecturer_user_id]])
+        ->callMountedAction()
+        ->assertHasNoActionErrors();
+    expect($defense->fresh()->examiners()->where('role', 'examiner')->count())->toBe(1);
 });
 
 it('lists only accessible latest sidang records and shows the shortcut for each stage', function (): void {

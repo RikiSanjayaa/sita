@@ -139,7 +139,7 @@ class AcademicStructureSeeder extends Seeder
                 );
 
                 foreach ($facultyData['program_studis'] as $programStudiData) {
-                    ProgramStudi::query()->updateOrCreate(
+                    $programStudi = ProgramStudi::query()->updateOrCreate(
                         ['slug' => $programStudiData['slug']],
                         [
                             'faculty_id' => $faculty->id,
@@ -148,6 +148,9 @@ class AcademicStructureSeeder extends Seeder
                             'concentrations' => ProgramStudi::defaultConcentrationsForSlug($programStudiData['slug']),
                         ],
                     );
+                    if ($programStudi->wasRecentlyCreated && $programStudiData['slug'] === 'ilkom') {
+                        $programStudi->update(['sidang_settings' => ['minimum_paper_examiners' => 2]]);
+                    }
                 }
             }
         });
