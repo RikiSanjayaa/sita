@@ -21,6 +21,9 @@ use App\Services\ThesisDefenseExaminerDecisionService;
 use App\Services\ThesisProjectAdminService;
 use App\Support\SidangSettings;
 use Database\Seeders\AcademicStructureSeeder;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
+use Illuminate\Testing\TestResponse;
 use Illuminate\Validation\ValidationException;
 use Inertia\Testing\AssertableInertia as Assert;
 use Livewire\Livewire;
@@ -309,6 +312,16 @@ function sidangReportSheet(string $content, string $part = 'xl/worksheets/sheet7
     }
 }
 
+function sidangExcelContent(TestResponse $response): string
+{
+    $path = $response->baseResponse->getFile()->getPathname();
+    try {
+        return file_get_contents($path);
+    } finally {
+        unlink($path);
+    }
+}
+
 it('prints the scheduled identity, records actual panel totals, and exports only the finalized latest passing attempt', function () {
     [$defense, $student, $program, $scores] = sidangPaperFixture();
     $admin = User::factory()->asSuperAdmin()->create();
@@ -344,8 +357,8 @@ it('prints the scheduled identity, records actual panel totals, and exports only
         ->and(sidangReportSheet($word, 'word/media/image1.png'))->toBe(sidangReportSheet($template, 'word/media/image1.png'));
 
     $params = ['from' => '2026-11-04', 'until' => '2026-11-04', 'period' => 'Semester Uji'];
-    expect(sidangReportSheet($this->post(route('sidang.report'), $params)->assertOk()->streamedContent()))
-        ->not->toContain($student->name);
+    $this->postJson(route('sidang.report'), $params)->assertUnprocessable()
+        ->assertJsonPath('message', SidangReportWriter::EMPTY_MESSAGE);
 
     $program->update(['sidang_settings' => ['a' => 76]]);
     app(ThesisProjectAdminService::class)->completeSidang(
@@ -354,18 +367,17 @@ it('prints the scheduled identity, records actual panel totals, and exports only
     expect($defense->fresh()->sidang_paper['grade'])->toBe('A');
     $word = $this->get(route('sidang.paper.print', [$defense, 'lembar' => 'berita-acara']))->streamedContent();
     expect(sidangReportSheet($word, 'word/document.xml'))->toContain('>LULUS<')->not->toContain('TIDAK LULUS');
-    $sheet = sidangReportSheet($this->post(route('sidang.report'), $params)->assertDownload('rekap-nilai-sidang.xlsx')->streamedContent());
-    expect($sheet)->toContain($student->name, 'Sistem Rekap Penilaian', 'A12:A14', 'B+', 'Semester Uji', '<f>(L12*30%+L13*30%+L14*40%)</f>', '<f>ROUND(M12,0)</f>');
+    $sheet = sidangReportSheet(sidangExcelContent($this->post(route('sidang.report'), $params)->assertDownload('rekap-nilai-sidang.xlsx')));
+    expect($sheet)->toContain($student->name, 'Sistem Rekap Penilaian', 'A12:A14', 'B+', 'Semester Uji', '<f>ROUND(L12*30%+L13*30%+L14*40%,4)</f>', '<f>ROUND(M12,0)</f>');
     $formulaLikePeriod = array_replace($params, ['period' => '=2+2']);
-    expect(sidangReportSheet($this->post(route('sidang.report'), $formulaLikePeriod)->streamedContent()))
+    expect(sidangReportSheet(sidangExcelContent($this->post(route('sidang.report'), $formulaLikePeriod)->assertOk())))
         ->toContain('>=2+2</t>')->not->toContain('<f>2+2</f>');
 
     $this->actingAs(User::factory()->asAdmin()->create())->get(route('sidang.paper.show', $defense))->assertForbidden();
     $this->actingAs($admin);
-    expect(sidangReportSheet($this->post(route('sidang.report'), ['from' => '2026-11-05', 'until' => '2026-11-05'])->streamedContent()))
-        ->not->toContain($student->name);
+    $this->postJson(route('sidang.report'), ['from' => '2026-11-05', 'until' => '2026-11-05'])->assertUnprocessable();
     $defense->project->sidangDefenses()->create(['type' => 'sidang', 'attempt_no' => 2, 'status' => 'scheduled']);
-    expect(sidangReportSheet($this->post(route('sidang.report'), $params)->streamedContent()))->not->toContain($student->name);
+    $this->postJson(route('sidang.report'), $params)->assertUnprocessable();
 });
 
 it('corrects a digital score from paper while preserving the decision and revision notes', function () {
@@ -488,8 +500,8 @@ it('snapshots a complete digital panel at finalization and exports it without pa
     $program->update(['sidang_settings' => ['a' => 1, 'examiner_1' => 100, 'examiner_2' => 0, 'supervisor' => 0]]);
     expect(app(SidangScoreService::class)->summary($defense->fresh()))->toMatchArray(['value' => 80.0, 'grade' => 'B+']);
     expect($defense->fresh()->sidang_paper)->not->toHaveKey('scores');
-    $sheet = sidangReportSheet($this->actingAs($admin)->post(route('sidang.report'))->assertOk()->streamedContent());
-    expect($sheet)->toContain($student->name, '<f>(L12*30%+L13*30%+L14*40%)</f>');
+    $sheet = sidangReportSheet(sidangExcelContent($this->actingAs($admin)->post(route('sidang.report'))->assertOk()));
+    expect($sheet)->toContain($student->name, '<f>ROUND(L12*30%+L13*30%+L14*40%,4)</f>');
 });
 
 it('rejects score changes by nonmembers and invalid numeric inputs', function (mixed $score): void {
@@ -575,7 +587,7 @@ it('uses the same corrected score on manager, lecturer, student, Word and Excel 
     $this->actingAs($admin);
     $word = $this->get(route('sidang.paper.print', [$defense, 'lembar' => 'rekap-nilai']))->streamedContent();
     expect(sidangReportSheet($word, 'word/document.xml'))->toContain('79.55', '88.5');
-    $excel = $this->post(route('sidang.report'))->assertOk()->streamedContent();
+    $excel = sidangExcelContent($this->post(route('sidang.report'))->assertOk());
     expect(sidangReportSheet($excel))->toContain('79.55', '88.5');
 });
 
@@ -585,17 +597,52 @@ it('continues the reference row pattern past nine defenses and keeps each progra
     [$second, $student, , $otherScores] = sidangPaperFixture();
     app(SidangPaperService::class)->record($first, $admin, ['scores' => $scores]);
     app(SidangPaperService::class)->record($second, $admin, ['scores' => $otherScores]);
+    $first->update(['sidang_sk' => '001/ADUM']);
+    $first->examiners()->first()->lecturer->dosenProfile->update(['sidang_nidn' => '00001234']);
+    $extra = $first->fresh();
+    $extra->sidang_sk = '002/ADUM';
 
-    ob_start();
+    $path = app(SidangReportWriter::class)->prepare([...array_fill(0, 9, $first->fresh()), $extra, $second->fresh()], 'Uji');
     try {
-        app(SidangReportWriter::class)->write([...array_fill(0, 10, $first->fresh()), $second->fresh()], 'Uji');
-        $content = ob_get_contents();
+        $content = file_get_contents($path);
     } finally {
-        ob_end_clean();
+        unlink($path);
     }
 
-    expect(sidangReportSheet($content))->toContain('A39:A41', '<f>(L39*30%+L40*30%+L41*40%)</f>', 'A44:B44');
+    $sheet = sidangReportSheet($content);
+    expect($sheet)->toContain('A39:A41', '<f>ROUND(L39*30%+L40*30%+L41*40%,4)</f>', 'A44:B44', 'E12:E38', 'E39:E41', '002/ADUM', '>00001234</t>');
+    $xml = new DOMDocument;
+    expect($xml->loadXML($sheet))->toBeTrue();
+    $rows = $xml->getElementsByTagName('row');
+    $rowNumbers = array_map(fn (DOMElement $row): int => (int) $row->getAttribute('r'), iterator_to_array($rows));
+    expect($rowNumbers)->toBe(array_values(array_unique($rowNumbers)));
+    $merges = $xml->getElementsByTagName('mergeCells')->item(0);
+    expect((int) $merges->getAttribute('count'))->toBe($merges->childElementCount);
+    expect(sidangReportSheet($content, 'xl/workbook.xml'))->toContain('$A$7:$O$52', '$A$7:$O$49');
     expect(sidangReportSheet($content, 'xl/worksheets/rekap2.xml'))->toContain($student->name, 'A12:A14');
+});
+
+it('intersects the admin selection token with the requested attempts and rejects another user token', function (): void {
+    [$first, $student, $program, $firstScores] = sidangPaperFixture();
+    [$second, $otherStudent, , $secondScores] = sidangPaperFixture($program);
+    $admin = User::factory()->asSuperAdmin()->create();
+    foreach ([[$first, $firstScores], [$second, $secondScores]] as [$attempt, $scores]) {
+        app(SidangPaperService::class)->record($attempt, $admin, ['scores' => $scores]);
+        $attempt->update(['status' => 'completed', 'result' => 'pass']);
+    }
+    $token = (string) Str::uuid();
+    $selected = $first->project()->getQuery()->select('thesis_projects.id')->toBase();
+    Cache::store('database')->put('sidang-export:'.$token, [
+        'user' => $admin->id, 'sql' => $selected->toSql(), 'bindings' => $selected->getBindings(),
+    ], 60);
+
+    $this->actingAs($admin);
+    $sheet = sidangReportSheet(sidangExcelContent($this->get(route('sidang.report', ['selection' => $token]))->assertOk()));
+    expect($sheet)->toContain($student->name)->not->toContain($otherStudent->name);
+    $this->postJson(route('sidang.report'), ['selection' => $token, 'ids' => (string) $second->id])
+        ->assertUnprocessable()->assertJsonPath('message', SidangReportWriter::EMPTY_MESSAGE);
+    $this->actingAs(User::factory()->asSuperAdmin()->create())->getJson(route('sidang.report', ['selection' => $token]))
+        ->assertForbidden();
 });
 
 it('saves editable semester periods by program and exports the selected WITA range', function (): void {
@@ -639,9 +686,13 @@ it('saves editable semester periods by program and exports the selected WITA ran
         app(SidangPaperService::class)->record($attempt, $admin, ['scores' => $totals]);
         $attempt->update(['status' => 'completed', 'result' => 'pass']);
     }
-    $sheet = sidangReportSheet($this->post(route('sidang.report'), ['period_id' => $period->id])
-        ->assertDownload('rekap-nilai-sidang.xlsx')->streamedContent());
+    $sheet = sidangReportSheet(sidangExcelContent($this->post(route('sidang.report'), [
+        'period_id' => $period->id, 'from' => '2096-11-10', 'until' => '2096-11-01', 'period' => 'Tidak dipakai',
+    ])
+        ->assertDownload('rekap-nilai-sidang.xlsx')));
     expect($sheet)->toContain($student->name, 'SEMESTER GENAP 2026/2027')->not->toContain($otherStudent->name);
+    $this->postJson(route('sidang.report'), ['period_id' => null, 'from' => '2026-11-06', 'until' => '2026-11-04'])
+        ->assertUnprocessable()->assertJsonValidationErrors('until');
 
     $foreignAdmin = User::factory()->asAdmin()->create();
     AdminProfile::query()->create(['user_id' => $foreignAdmin->id, 'program_studi_id' => ProgramStudi::factory()->create()->id]);
@@ -676,7 +727,7 @@ it('assigns a shared No SK and preserves grades and existing different numbers',
         ->and($first->fresh()->sidang_paper)->toBe($paper);
     expect($service->assignSk($admin, collect([$first->project, $second->project]), '001/ADUM'))->toBe(2);
 
-    $sheet = sidangReportSheet($this->post(route('sidang.report'))->assertOk()->streamedContent());
+    $sheet = sidangReportSheet(sidangExcelContent($this->post(route('sidang.report'))->assertOk()));
     expect($sheet)->toContain('E12:E17', 'E18:E20', '001/ADUM', '002/ADUM');
 });
 
@@ -712,7 +763,7 @@ it('limits kaprodi to the own program for the paper, the Word packet and the Exc
     expect($foreign->fresh()->sidang_sk)->toBeNull();
     $this->post(route('sidang.report'), ['period_id' => $foreignPeriod->id])->assertForbidden();
 
-    $sheet = sidangReportSheet($this->post(route('sidang.report'))->assertOk()->streamedContent());
+    $sheet = sidangReportSheet(sidangExcelContent($this->post(route('sidang.report'))->assertOk()));
     expect($sheet)->toContain($ownStudent->name)->not->toContain($foreignStudent->name);
 
     $outsider = User::factory()->asDosen()->create();

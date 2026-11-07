@@ -10,6 +10,18 @@ final class SidangOfficeTemplate
 {
     public static function stream(string $template, callable $fill): void
     {
+        $path = self::prepare($template, $fill);
+        try {
+            if (readfile($path) === false) {
+                throw new RuntimeException('Berkas sidang tidak dapat diunduh.');
+            }
+        } finally {
+            unlink($path);
+        }
+    }
+
+    public static function prepare(string $template, callable $fill): string
+    {
         $path = tempnam(sys_get_temp_dir(), 'sita-office-');
         if ($path === false) {
             throw new RuntimeException('Gagal menyiapkan berkas unduhan.');
@@ -25,14 +37,18 @@ final class SidangOfficeTemplate
             }
             try {
                 $fill($zip);
-            } finally {
+            } catch (\Throwable $exception) {
                 $zip->close();
+                throw $exception;
             }
-            if (readfile($path) === false) {
-                throw new RuntimeException('Berkas sidang tidak dapat diunduh.');
+            if (! $zip->close()) {
+                throw new RuntimeException('Berkas sidang tidak dapat disimpan.');
             }
-        } finally {
+
+            return $path;
+        } catch (\Throwable $exception) {
             unlink($path);
+            throw $exception;
         }
     }
 

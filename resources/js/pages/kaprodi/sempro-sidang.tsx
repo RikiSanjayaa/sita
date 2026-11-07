@@ -16,7 +16,7 @@ import {
     User,
     XCircle,
 } from 'lucide-react';
-import { useEffect, useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState, type FormEvent } from 'react';
 
 import { type BimbinganEvent } from '@/components/bimbingan-calendar';
 import { CollapsibleCalendarSection } from '@/components/collapsible-calendar-section';
@@ -325,9 +325,68 @@ export default function KaprodiSemproSidangPage() {
     const pageState = useUrlState('page', 1);
     const [selected, setSelected] = useState<ExamRow | null>(null);
     const [showReport, setShowReport] = useState(false);
+    const [reportBusy, setReportBusy] = useState(false);
+    const [reportError, setReportError] = useState('');
+    const [reportStatus, setReportStatus] = useState('');
     const [reportPeriod, setReportPeriod] = useState(
         activeReportPeriodId === null ? '' : String(activeReportPeriodId),
     );
+
+    async function downloadReport(event: FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+        if (reportBusy) return;
+        const body = new FormData(event.currentTarget);
+        setReportBusy(true);
+        setReportError('');
+        setReportStatus('');
+        try {
+            const response = await fetch(report.url(), {
+                method: 'POST',
+                headers: { Accept: 'application/json' },
+                body,
+            });
+            if (!response.ok) {
+                const result = await response.json().catch(() => null);
+                throw new Error(
+                    response.status === 422 &&
+                        typeof result?.message === 'string'
+                        ? result.message
+                        : 'Excel belum bisa diunduh. Coba lagi.',
+                );
+            }
+            if (
+                !response.headers
+                    .get('content-disposition')
+                    ?.includes('attachment')
+            ) {
+                throw new Error(
+                    'Excel belum bisa diunduh. Muat ulang halaman jika sesi sudah berakhir.',
+                );
+            }
+            const url = URL.createObjectURL(await response.blob());
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'rekap-nilai-sidang.xlsx';
+            link.click();
+            window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+            setReportStatus('Unduhan Excel dimulai.');
+        } catch (error) {
+            setReportError(
+                error instanceof Error && !(error instanceof TypeError)
+                    ? error.message
+                    : 'Excel belum bisa diunduh. Coba lagi.',
+            );
+        } finally {
+            setReportBusy(false);
+        }
+    }
+
+    function changeReportOpen(open: boolean) {
+        if (reportBusy) return;
+        setReportError('');
+        setReportStatus('');
+        setShowReport(open);
+    }
     const [selectedEvent, setSelectedEvent] = useState<BimbinganEvent | null>(
         null,
     );
@@ -818,19 +877,21 @@ export default function KaprodiSemproSidangPage() {
                 </DataSection>
             </div>
 
-            <Dialog open={showReport} onOpenChange={setShowReport}>
+            <Dialog open={showReport} onOpenChange={changeReportOpen}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Rekap Nilai Sidang</DialogTitle>
                         <DialogDescription>
-                            File mengikuti filter daftar ujian dan memuat hasil
-                            sidang lulus yang sudah dikonfirmasi dari berkas.
+                            File mengikuti filter daftar ujian dan memuat sidang
+                            lulus yang sudah final dengan tiga nilai lengkap.
                             Periode dihitung dari tanggal sidang dalam WITA.
                         </DialogDescription>
                     </DialogHeader>
                     <form
                         method="post"
                         action={report.url()}
+                        onSubmit={downloadReport}
+                        aria-busy={reportBusy}
                         className="space-y-4"
                     >
                         <input
@@ -848,10 +909,7 @@ export default function KaprodiSemproSidangPage() {
                             type="hidden"
                             name="ids"
                             value={
-                                filtered
-                                    .filter((exam) => exam.readyForReport)
-                                    .map((exam) => exam.id)
-                                    .join(',') || '0'
+                                filtered.map((exam) => exam.id).join(',') || '0'
                             }
                         />
                         {reportPeriods.length > 0 && (
@@ -861,6 +919,7 @@ export default function KaprodiSemproSidangPage() {
                                     name="period_id"
                                     className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                                     value={reportPeriod}
+                                    disabled={reportBusy}
                                     onChange={(event) =>
                                         setReportPeriod(event.target.value)
                                     }
@@ -887,6 +946,8 @@ export default function KaprodiSemproSidangPage() {
                                         <Input
                                             type="date"
                                             name="from"
+                                            className="text-foreground [color-scheme:light] dark:[color-scheme:dark]"
+                                            disabled={reportBusy}
                                             required
                                         />
                                     </label>
@@ -895,6 +956,8 @@ export default function KaprodiSemproSidangPage() {
                                         <Input
                                             type="date"
                                             name="until"
+                                            className="text-foreground [color-scheme:light] dark:[color-scheme:dark]"
+                                            disabled={reportBusy}
                                             required
                                         />
                                     </label>
@@ -903,14 +966,36 @@ export default function KaprodiSemproSidangPage() {
                                     Nama periode
                                     <Input
                                         name="period"
+                                        disabled={reportBusy}
                                         placeholder="Contoh: Ganjil 2026/2027"
                                         maxLength={80}
                                     />
                                 </label>
                             </>
                         )}
+                        {reportError && (
+                            <p role="alert" className="text-sm text-foreground">
+                                {reportError}
+                            </p>
+                        )}
+                        <p
+                            role="status"
+                            className="text-sm text-muted-foreground empty:hidden"
+                        >
+                            {reportBusy
+                                ? 'Menyiapkan file Excel...'
+                                : reportStatus}
+                        </p>
                         <DialogFooter>
-                            <Button type="submit">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                disabled={reportBusy}
+                                onClick={() => changeReportOpen(false)}
+                            >
+                                Batal
+                            </Button>
+                            <Button type="submit" disabled={reportBusy}>
                                 <Download className="size-4" aria-hidden />{' '}
                                 Unduh Excel
                             </Button>

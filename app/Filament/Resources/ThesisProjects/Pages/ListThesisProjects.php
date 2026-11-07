@@ -52,8 +52,10 @@ class ListThesisProjects extends ListRecords
                 ->icon('heroicon-m-arrow-down-tray')
                 ->color('gray')
                 ->modalHeading('Rekap Nilai Sidang')
-                ->modalDescription('Hasil sidang lulus dari berkas yang sudah dikonfirmasi, sesuai filter tabel dan tanggal sidang WITA.')
+                ->modalDescription('Memuat sidang lulus yang sudah final dengan tiga nilai lengkap, sesuai filter tabel dan tanggal sidang WITA.')
                 ->modalSubmitActionLabel('Unduh Excel')
+                ->modalCancelActionLabel('Batal')
+                ->modalContentFooter(fn () => view('filament.thesis-projects.sidang-report-download'))
                 ->schema([
                     Select::make('period_id')->label('Periode rekap')->placeholder('Rentang tanggal manual')
                         ->options(fn (): array => $periodService->periods($programId)->mapWithKeys(fn (SidangReportPeriod $period): array => [
@@ -67,13 +69,14 @@ class ListThesisProjects extends ListRecords
                     TextInput::make('period')->label('Nama periode')->visible(fn (Get $get): bool => blank($get('period_id')))
                         ->maxLength(80)->placeholder('Contoh: Ganjil 2026/2027'),
                 ])
-                ->action(function (array $data): void {
+                ->action(function (array $data, Action $action): void {
                     $query = $this->getTableQueryForExport()->reorder()->select('thesis_projects.id')->toBase();
                     $token = (string) Str::uuid();
                     Cache::store('database')->put('sidang-export:'.$token, [
                         'user' => Auth::id(), 'sql' => $query->toSql(), 'bindings' => $query->getBindings(),
                     ], now()->addMinutes(5));
-                    $this->js('window.location.assign('.json_encode(route('sidang.report', [...$data, 'selection' => $token]), JSON_HEX_TAG | JSON_THROW_ON_ERROR).')');
+                    $this->dispatch('sidang-report-download', url: route('sidang.report', [...$data, 'selection' => $token]));
+                    $action->halt();
                 }),
             Action::make('downloadThesisImportTemplate')
                 ->label('Download Template')

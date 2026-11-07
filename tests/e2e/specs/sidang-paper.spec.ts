@@ -1,9 +1,54 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page, type TestInfo } from '@playwright/test';
 
-import { runArtisan } from '../support/db';
+import { runArtisan, seedPlaywrightScenarios } from '../support/db';
 import { authStatePath } from '../support/thesis-fixtures';
 
 test.use({ storageState: authStatePath('kaprodi') });
+
+const emptyReport = 'Tidak ada sidang lulus yang sudah final pada filter ini.';
+
+test.beforeEach(() => seedPlaywrightScenarios());
+test.afterAll(() => seedPlaywrightScenarios());
+
+function finalizeDemoSidang() {
+    runArtisan([
+        'tinker',
+        '--execute=' +
+            [
+                "$student = App\\Models\\User::where('email', 'e2e-sidang@sita.test')->firstOrFail();",
+                "$project = App\\Models\\ThesisProject::where('student_user_id', $student->id)->where('state', 'active')->firstOrFail();",
+                '$defense = $project->latestSidangDefense;',
+                "$admin = App\\Models\\User::where('email', 'superadmin@sita.test')->firstOrFail();",
+                "$defense->update(['scheduled_for' => '2026-11-15 02:00:00', 'status' => 'awaiting_finalization']);",
+                "$defense->examiners()->update(['score' => 80, 'decision' => 'pass']);",
+                "app(App\\Services\\ThesisProjectAdminService::class)->completeSidang($project, $admin->id, 'pass', 'Hasil demo rekap.');",
+            ].join(' '),
+    ]);
+}
+
+async function captureReport(page: Page, testInfo: TestInfo, label: string) {
+    for (const width of [1280, 390]) {
+        await page.setViewportSize({ width, height: 920 });
+        for (const theme of ['light', 'dark']) {
+            await page.evaluate(
+                (mode) =>
+                    document.documentElement.classList.toggle(
+                        'dark',
+                        mode === 'dark',
+                    ),
+                theme,
+            );
+            expect(
+                await page.evaluate(() => document.documentElement.scrollWidth),
+            ).toBeLessThanOrEqual(width);
+            await testInfo.attach(`${label}-${width}-${theme}`, {
+                body: await page.screenshot({ animations: 'disabled' }),
+                contentType: 'image/png',
+            });
+        }
+    }
+    await page.setViewportSize({ width: 1280, height: 920 });
+}
 
 test('kaprodi opens the scheduled packet and downloads a filtered report', async ({
     page,
@@ -61,10 +106,22 @@ test('kaprodi opens the scheduled packet and downloads a filtered report', async
         /^berita-acara-\d+\.docx$/,
     );
 
+    finalizeDemoSidang();
     await page.setViewportSize({ width: 1280, height: 920 });
     await page.goto('/kaprodi/sempro-sidang');
+    const search = page.getByPlaceholder(
+        'Cari nama, NIM, judul, atau dosen...',
+    );
+    await search.fill('Sinta Sidang Terjadwal');
     await page.getByRole('button', { name: 'Rekap Nilai' }).click();
     const dialog = page.getByRole('dialog');
+    await dialog.getByLabel('Dari tanggal').fill('2096-11-01');
+    await dialog.getByLabel('Sampai tanggal').fill('2096-11-30');
+    await dialog.getByRole('button', { name: 'Unduh Excel' }).click();
+    await expect(dialog.getByRole('alert')).toHaveText(emptyReport);
+    await expect(dialog.getByLabel('Dari tanggal')).toHaveValue('2096-11-01');
+    await captureReport(page, testInfo, 'kaprodi-rekap-kosong');
+
     await dialog.getByLabel('Dari tanggal').fill('2026-11-01');
     await dialog.getByLabel('Sampai tanggal').fill('2026-11-30');
     const downloaded = page.waitForEvent('download');
@@ -72,11 +129,14 @@ test('kaprodi opens the scheduled packet and downloads a filtered report', async
     expect((await downloaded).suggestedFilename()).toBe(
         'rekap-nilai-sidang.xlsx',
     );
+    await expect(dialog.getByText('Unduhan Excel dimulai.')).toBeVisible();
+    await captureReport(page, testInfo, 'kaprodi-rekap-berhasil');
 });
 
 test('admin saves an editable semester suggestion and reuses it for Excel', async ({
     browser,
 }, testInfo) => {
+    finalizeDemoSidang();
     const admin = await browser.newContext({
         storageState: authStatePath('admin'),
     });
@@ -122,11 +182,24 @@ test('admin saves an editable semester suggestion and reuses it for Excel', asyn
             label: 'Semester Genap 2096/2097 (14/09/2096 - 14/10/2096)',
         });
         await expect(form.getByLabel('Dari tanggal')).toBeHidden();
+        await form.getByRole('button', { name: 'Unduh Excel' }).click();
+        await expect(form.getByRole('alert')).toHaveText(emptyReport);
+        await expect(
+            form.locator('select').locator('option:checked'),
+        ).toContainText('Semester Genap 2096/2097');
+        await captureReport(page, testInfo, 'admin-rekap-kosong');
+
+        await form.locator('select').selectOption('');
+        await form.getByLabel('Dari tanggal').fill('2026-11-01');
+        await form.getByLabel('Sampai tanggal').fill('2026-11-30');
         const downloaded = page.waitForEvent('download');
         await form.getByRole('button', { name: 'Unduh Excel' }).click();
         expect((await downloaded).suggestedFilename()).toBe(
             'rekap-nilai-sidang.xlsx',
         );
+        await expect(form.getByText('Unduhan Excel dimulai.')).toBeVisible();
+        await captureReport(page, testInfo, 'admin-rekap-berhasil');
+        await form.getByRole('button', { name: 'Batal', exact: true }).click();
 
         const kaprodi = await browser.newContext({
             storageState: authStatePath('kaprodi'),

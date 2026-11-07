@@ -2,33 +2,23 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\SidangReportRequest;
 use App\Models\SidangReportPeriod;
 use App\Models\ThesisDefense;
-use App\Models\User;
 use App\Services\SidangReportWriter;
-use App\Services\SidangScoreService;
 use App\Support\WitaDateTime;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class SidangReportController extends Controller
 {
-    public function __invoke(Request $request, SidangReportWriter $writer): StreamedResponse
+    public function __invoke(SidangReportRequest $request, SidangReportWriter $writer): BinaryFileResponse
     {
         $user = $request->user();
-        abort_unless($user instanceof User && $user->hasAnyRole(['super_admin', 'admin', 'kaprodi']), 403);
-        $filters = $request->validate([
-            'from' => ['nullable', 'required_with:until', 'date_format:Y-m-d'],
-            'until' => ['nullable', 'required_with:from', 'date_format:Y-m-d', 'after_or_equal:from'],
-            'period' => ['nullable', 'string', 'max:80'],
-            'period_id' => ['nullable', 'integer'],
-            'selection' => ['nullable', 'string', 'max:80'],
-            'ids' => ['nullable', 'string', 'max:500000', 'regex:/^\d+(,\d+)*$/'],
-        ]);
+        $filters = $request->validated();
         $query = ThesisDefense::query()
             ->where('type', 'sidang')
             ->where('status', 'completed')
@@ -78,11 +68,12 @@ class SidangReportController extends Controller
             'examiners.lecturer.dosenProfile',
         ])->orderBy('thesis_defenses.id');
 
-        return response()->streamDownload(
-            fn () => $writer->write($query->lazyById(200, 'thesis_defenses.id', 'id')
-                ->filter(fn (ThesisDefense $defense): bool => app(SidangScoreService::class)->summary($defense) !== null), $filters['period'] ?? ''),
+        $path = $writer->prepare($query->lazyById(200, 'thesis_defenses.id', 'id'), $filters['period'] ?? '');
+
+        return response()->download(
+            $path,
             'rekap-nilai-sidang.xlsx',
             ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'Cache-Control' => 'private, no-store'],
-        );
+        )->deleteFileAfterSend();
     }
 }

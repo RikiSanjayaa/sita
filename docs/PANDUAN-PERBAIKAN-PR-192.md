@@ -67,6 +67,12 @@ Migrasi data hanya mengisi skor panel yang kosong dari JSON lama dengan ID dan p
 
 ## 4. Rekap Excel
 
+### Penerapan tahap ketiga
+
+Rekap mengikuti filter tabel dan rentang jadwal WITA. Periode tersimpan mengambil alih tanggal dan judul manual. Endpoint mengecek scope prodi, pemilik token pilihan, attempt, dan kelengkapan tiga nilai sebelum mengirim file. Hasil kosong memberi respons 422 dan pesan yang sama di dialog Admin dan Kaprodi, dengan isian tetap tersedia.
+
+OpenSpout 4.32 membuat workbook baru. Uji ekspor dasar tidak membawa area cetak atau pengaturan printer dari template. Penulis rekap memakai XML worksheet dari template resmi dan menulis blok baris tambahan serta merge ke file sementara. Uji lokal penulis dengan data sintetis mencatat puncak memori PHP tambahan 5.190.408 byte pada 1.000 entri dan 5.198.184 byte pada 10.000 entri. Penerimaan pendekatan ini dan kebutuhan laporan progres untuk sidang belum final masih perlu keputusan di #23.
+
 **File utama** — `app/Http/Controllers/SidangReportController.php`, Form Request baru untuk rekap, `app/Services/SidangReportWriter.php`, `app/Services/KaprodiPortalService.php`, `app/Services/SidangReportPeriodService.php`, `app/Filament/Resources/ThesisProjects/Pages/ListThesisProjects.php`, dan `resources/js/pages/kaprodi/sempro-sidang.tsx`.
 
 - Pindahkan validasi rentang tanggal, periode, pilihan, dan filter ke Form Request. Pertahankan otorisasi periode, cakupan prodi, keterikatan token pilihan ke pengguna, dan filter yang sedang dipakai. Tentukan prioritas antara periode tersimpan dan tanggal manual secara eksplisit. Pertahankan batas tanggal sidang WITA dan pengecualian attempt lama jika ada attempt lebih baru yang relevan.

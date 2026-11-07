@@ -18,101 +18,178 @@ final class SidangReportWriter
 
     private const RELATIONSHIP = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
 
-    public function write(iterable $defenses, string $period): void
+    public const EMPTY_MESSAGE = 'Tidak ada sidang lulus yang sudah final pada filter ini.';
+
+    public function prepare(iterable $defenses, string $period): string
     {
-        SidangOfficeTemplate::stream('rekap-nilai-sidang.xlsx', function (ZipArchive $zip) use ($defenses, $period): void {
-            $groups = [];
-            foreach ($defenses as $defense) {
-                $terms = AcademicTerminology::forProject($defense->project);
-                $key = $defense->project->program_studi_id.'-'.$terms['degreeLevel'];
-                if (! isset($groups[$key])) {
-                    $groups[$key] = ['sheet' => SidangOfficeTemplate::readXml($zip, self::SHEET), 'first' => $defense, 'count' => 0, 'sk' => []];
-                }
-                $this->addDefense($groups[$key]['sheet'], $defense, ++$groups[$key]['count']);
-                $groups[$key]['sk'][] = $defense->sidang_sk;
+        $files = [];
+        try {
+            return SidangOfficeTemplate::prepare('rekap-nilai-sidang.xlsx', function (ZipArchive $zip) use ($defenses, $period, &$files): void {
+                $this->fillWorkbook($zip, $defenses, $period, $files);
+            });
+        } finally {
+            foreach ($files as $file) {
+                fclose($file);
             }
-            if ($groups === []) {
-                $groups[] = ['sheet' => SidangOfficeTemplate::readXml($zip, self::SHEET), 'first' => null, 'count' => 0, 'sk' => []];
-            }
-            $workbook = SidangOfficeTemplate::readXml($zip, 'xl/workbook.xml');
-            $relations = SidangOfficeTemplate::readXml($zip, 'xl/_rels/workbook.xml.rels');
-            $types = SidangOfficeTemplate::readXml($zip, '[Content_Types].xml');
-            $sheets = $workbook->getElementsByTagName('sheets')->item(0);
-            $definedNames = $workbook->getElementsByTagName('definedNames')->item(0);
-            $printArea = $definedNames->firstElementChild;
-            foreach (array_values($groups) as $index => $group) {
-                $first = $group['first'];
-                $program = $first?->project->programStudi;
-                $terms = $first === null ? AcademicTerminology::neutral() : AcademicTerminology::forProject($first->project);
-                $settings = SidangSettings::forProgram($program);
-                $head = $program?->kaprodiAssignments->firstWhere('is_primary', true)?->user;
-                $sheet = $group['sheet'];
-                $view = $sheet->getElementsByTagName('sheetView')->item(0);
-                $view->removeAttribute('topLeftCell');
-                $view->setAttribute('tabSelected', $index === 0 ? '1' : '0');
-                foreach ($view->getElementsByTagName('selection') as $selection) {
-                    $selection->setAttribute('activeCell', 'A7');
-                    $selection->setAttribute('sqref', 'A7');
-                }
-                $last = 49 + max(0, $group['count'] - 9) * 3;
-                $this->writeSk($sheet, $group['sk'], $last - 11);
-                $shift = $last - 49;
-                $title = 'REKAP NILAI '.$terms['finalWork'];
-                if ($program !== null) {
-                    $title .= ' PROGRAM STUDI '.$terms['degreeLevel'].' '.$program->name;
-                }
-                foreach ([
-                    'A7' => mb_strtoupper($title),
-                    'A8' => $period !== '' ? $period : 'REKAP NILAI SIDANG',
-                    'J'.(41 + $shift) => $settings['city'].', '.WitaDateTime::translated(now(), 'd F Y', withLabel: false),
-                    'A'.(42 + $shift) => 'Dekan '.($program?->faculty?->name ?? 'Fakultas Teknik'),
-                    'F'.(42 + $shift) => 'Ketua Program Studi '.trim($terms['degreeLevel'].' '.$program?->name),
-                    'A'.(48 + $shift) => $settings['dean_name'],
-                    'F'.(48 + $shift) => $head?->name,
-                    'J'.(48 + $shift) => $settings['staff_name'],
-                    'A'.(49 + $shift) => $settings['dean_nik'],
-                    'F'.(49 + $shift) => $head?->dosenProfile?->nik,
-                    'J'.(49 + $shift) => $settings['staff_nik'],
-                ] as $address => $value) {
-                    $this->value($sheet, $address, $value);
-                }
-                if ($index === 0) {
-                    $name = $sheets->firstElementChild->getAttribute('name');
-                    $entry = self::SHEET;
-                    $area = $printArea;
-                } else {
-                    $name = 'skrpsi new '.($index + 1);
-                    $entry = 'xl/worksheets/rekap'.($index + 1).'.xml';
-                    $id = 'rIdRekap'.($index + 1);
-                    $this->element($sheets, 'sheet', ['name' => $name, 'sheetId' => (string) (20 + $index)])
-                        ->setAttributeNS(self::RELATIONSHIP, 'r:id', $id);
-                    $this->element($relations->documentElement, 'Relationship', [
-                        'Id' => $id, 'Type' => self::RELATIONSHIP.'/worksheet', 'Target' => substr($entry, 3),
-                    ]);
-                    $this->element($types->documentElement, 'Override', [
-                        'PartName' => '/'.$entry, 'ContentType' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml',
-                    ]);
-                    $zip->addFromString('xl/worksheets/_rels/'.basename($entry).'.rels', $zip->getFromName('xl/worksheets/_rels/sheet7.xml.rels'));
-                    $area = $this->element($definedNames, 'definedName', ['name' => '_xlnm.Print_Area', 'localSheetId' => (string) $index]);
-                }
-                $area->textContent = "'".$name."'!".'$A$7:$O$'.$last;
-                SidangOfficeTemplate::saveXml($zip, $entry, $sheet);
-            }
-            SidangOfficeTemplate::saveXml($zip, 'xl/workbook.xml', $workbook);
-            SidangOfficeTemplate::saveXml($zip, 'xl/_rels/workbook.xml.rels', $relations);
-            SidangOfficeTemplate::saveXml($zip, '[Content_Types].xml', $types);
-        });
+        }
     }
 
-    private function addDefense(DOMDocument $sheet, ThesisDefense $defense, int $number): void
+    private function fillWorkbook(ZipArchive $zip, iterable $defenses, string $period, array &$files): void
     {
+        $template = SidangOfficeTemplate::readXml($zip, self::SHEET);
+        $groups = [];
+        foreach ($defenses as $defense) {
+            $summary = app(SidangScoreService::class)->summary($defense);
+            if ($summary === null) {
+                continue;
+            }
+
+            $terms = AcademicTerminology::forProject($defense->project);
+            $key = $defense->project->program_studi_id.'-'.$terms['degreeLevel'];
+            if (! isset($groups[$key])) {
+                $groups[$key] = [
+                    'sheet' => clone $template,
+                    'program' => $defense->project->programStudi,
+                    'terms' => $terms,
+                    'count' => 0,
+                    'rows' => $this->tempFile($files),
+                    'merges' => $this->tempFile($files),
+                    'mergeCount' => 0,
+                    'skStart' => 12,
+                    'sk' => $defense->sidang_sk,
+                ];
+            }
+            $this->appendDefense($groups[$key], $template, $defense, $summary);
+        }
+        abort_if($groups === [], 422, self::EMPTY_MESSAGE);
+        $workbook = SidangOfficeTemplate::readXml($zip, 'xl/workbook.xml');
+        $relations = SidangOfficeTemplate::readXml($zip, 'xl/_rels/workbook.xml.rels');
+        $types = SidangOfficeTemplate::readXml($zip, '[Content_Types].xml');
+        $sheets = $workbook->getElementsByTagName('sheets')->item(0);
+        $definedNames = $workbook->getElementsByTagName('definedNames')->item(0);
+        $printArea = $definedNames->firstElementChild;
+        foreach (array_values($groups) as $index => $group) {
+            $program = $group['program'];
+            $terms = $group['terms'];
+            $settings = SidangSettings::forProgram($program);
+            $head = $program?->kaprodiAssignments->firstWhere('is_primary', true)?->user;
+            $sheet = $group['sheet'];
+            $view = $sheet->getElementsByTagName('sheetView')->item(0);
+            $view->removeAttribute('topLeftCell');
+            $view->setAttribute('tabSelected', $index === 0 ? '1' : '0');
+            foreach ($view->getElementsByTagName('selection') as $selection) {
+                $selection->setAttribute('activeCell', 'A7');
+                $selection->setAttribute('sqref', 'A7');
+            }
+            $last = 49 + max(0, $group['count'] - 9) * 3;
+            $shift = $last - 49;
+            if ($shift > 0) {
+                foreach ($sheet->getElementsByTagName('row') as $row) {
+                    if ((int) $row->getAttribute('r') >= 39) {
+                        $this->moveRow($row, $shift);
+                    }
+                }
+                $sheet->getElementsByTagName('dimension')->item(0)->setAttribute('ref', 'A1:O'.$last);
+            }
+            $merges = $sheet->getElementsByTagName('mergeCells')->item(0);
+            foreach (iterator_to_array($merges->getElementsByTagName('mergeCell')) as $merge) {
+                $ref = $merge->getAttribute('ref');
+                if ($ref === 'E12:E38') {
+                    $merge->remove();
+                } elseif ($shift > 0) {
+                    $merge->setAttribute('ref', preg_replace_callback('/[0-9]+/', fn (array $match): int => (int) $match[0] + ((int) $match[0] >= 39 ? $shift : 0), $ref));
+                }
+            }
+            $skEnd = $group['skStart'] === 12 ? $last - 11 : 11 + $group['count'] * 3;
+            $this->spoolMerge($group, 'E'.$group['skStart'].':E'.$skEnd);
+            $title = 'REKAP NILAI '.$terms['finalWork'];
+            if ($program !== null) {
+                $title .= ' PROGRAM STUDI '.$terms['degreeLevel'].' '.$program->name;
+            }
+            foreach ([
+                'A7' => mb_strtoupper($title),
+                'A8' => $period !== '' ? $period : 'REKAP NILAI SIDANG',
+                'J'.(41 + $shift) => $settings['city'].', '.WitaDateTime::translated(now(), 'd F Y', withLabel: false),
+                'A'.(42 + $shift) => 'Dekan '.($program?->faculty?->name ?? 'Fakultas Teknik'),
+                'F'.(42 + $shift) => 'Ketua Program Studi '.trim($terms['degreeLevel'].' '.$program?->name),
+                'A'.(48 + $shift) => $settings['dean_name'],
+                'F'.(48 + $shift) => $head?->name,
+                'J'.(48 + $shift) => $settings['staff_name'],
+                'A'.(49 + $shift) => $settings['dean_nik'],
+                'F'.(49 + $shift) => $head?->dosenProfile?->nik,
+                'J'.(49 + $shift) => $settings['staff_nik'],
+            ] as $address => $value) {
+                $this->value($sheet, $address, $value);
+            }
+            if ($index === 0) {
+                $name = $sheets->firstElementChild->getAttribute('name');
+                $entry = self::SHEET;
+                $area = $printArea;
+            } else {
+                $name = 'skrpsi new '.($index + 1);
+                $entry = 'xl/worksheets/rekap'.($index + 1).'.xml';
+                $id = 'rIdRekap'.($index + 1);
+                $this->element($sheets, 'sheet', ['name' => $name, 'sheetId' => (string) (20 + $index)])
+                    ->setAttributeNS(self::RELATIONSHIP, 'r:id', $id);
+                $this->element($relations->documentElement, 'Relationship', [
+                    'Id' => $id, 'Type' => self::RELATIONSHIP.'/worksheet', 'Target' => substr($entry, 3),
+                ]);
+                $this->element($types->documentElement, 'Override', [
+                    'PartName' => '/'.$entry, 'ContentType' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml',
+                ]);
+                $zip->addFromString('xl/worksheets/_rels/'.basename($entry).'.rels', $zip->getFromName('xl/worksheets/_rels/sheet7.xml.rels'));
+                $area = $this->element($definedNames, 'definedName', ['name' => '_xlnm.Print_Area', 'localSheetId' => (string) $index]);
+            }
+            $area->textContent = "'".$name."'!".'$A$7:$O$'.$last;
+            $data = $sheet->getElementsByTagName('sheetData')->item(0);
+            $firstFooterRow = $this->row($sheet, 41 + $shift);
+            $data->insertBefore($sheet->createComment('sita-extra-rows'), $firstFooterRow);
+            $merges->setAttribute('count', (string) ($merges->childElementCount + $group['mergeCount']));
+            $merges->appendChild($sheet->createComment('sita-extra-merges'));
+            [$header, $body, $footer] = preg_split('/<!--sita-extra-(?:rows|merges)-->/', $sheet->saveXML());
+            $file = $this->tempFile($files);
+            $this->append($file, $header);
+            $this->copyStream($group['rows'], $file);
+            $this->append($file, $body);
+            $this->copyStream($group['merges'], $file);
+            $this->append($file, $footer);
+            if (! fflush($file) || ! $zip->addFile(stream_get_meta_data($file)['uri'], $entry)) {
+                throw new RuntimeException('Lembar rekap tidak dapat disimpan.');
+            }
+        }
+        SidangOfficeTemplate::saveXml($zip, 'xl/workbook.xml', $workbook);
+        SidangOfficeTemplate::saveXml($zip, 'xl/_rels/workbook.xml.rels', $relations);
+        SidangOfficeTemplate::saveXml($zip, '[Content_Types].xml', $types);
+    }
+
+    private function appendDefense(array &$group, DOMDocument $template, ThesisDefense $defense, array $summary): void
+    {
+        $number = ++$group['count'];
         $start = 12 + ($number - 1) * 3;
+        $sheet = $group['sheet'];
+        $extra = [];
         if ($number > 9) {
-            $this->insertBlock($sheet, $start);
+            $data = $sheet->getElementsByTagName('sheetData')->item(0);
+            for ($offset = 0; $offset < 3; $offset++) {
+                $row = $sheet->importNode($this->row($template, 36 + $offset), true);
+                $this->moveRow($row, $start - 36);
+                // These rows precede the footer in the lookup until they are spooled.
+                $extra[] = $data->insertBefore($row, $data->firstChild);
+            }
+            foreach (['A', 'B', 'C', 'D', 'F', 'M', 'N', 'O'] as $column) {
+                $this->spoolMerge($group, $column.$start.':'.$column.($start + 2));
+            }
+        }
+        if ($defense->sidang_sk !== $group['sk']) {
+            $this->spoolMerge($group, 'E'.$group['skStart'].':E'.($start - 1));
+            $group['skStart'] = $start;
+            $group['sk'] = $defense->sidang_sk;
+        }
+        if ($group['skStart'] === $start) {
+            $this->value($sheet, 'E'.$start, $group['sk']);
         }
         $merges = $sheet->getElementsByTagName('mergeCells')->item(0);
         $student = $defense->project->student;
-        $summary = app(SidangScoreService::class)->summary($defense);
         $scores = $summary['scores'];
         $settings = $summary['settings'];
         $supervisors = $defense->examiners->filter(fn ($member) => $member->isSupervisorRole())->sortBy('role')->values();
@@ -144,72 +221,56 @@ final class SidangReportWriter
             $this->value($sheet, 'I'.$row, $member->role === 'primary_supervisor' ? '1' : '2');
         }
         $weights = array_map(fn (string $role): int => (int) $settings[$role], ['examiner_1', 'examiner_2', 'supervisor']);
-        $weighted = sprintf('(L%d*%d%%+L%d*%d%%+L%d*%d%%)', $start, $weights[0], $start + 1, $weights[1], $start + 2, $weights[2]);
+        $weighted = sprintf('ROUND(L%d*%d%%+L%d*%d%%+L%d*%d%%,4)', $start, $weights[0], $start + 1, $weights[1], $start + 2, $weights[2]);
         $grade = '"E"';
         foreach (array_reverse(SidangSettings::GRADE_KEYS, true) as $index => $key) {
             $grade = sprintf('IF(M%d>=%d,"%s",%s)', $start, $settings[$key], SidangSettings::GRADES[$index], $grade);
         }
-        $this->value($sheet, 'M'.$start, $summary['value'], $weighted);
+        $calculated = round(array_sum(array_map(fn (array $score): float => $score['value'] * $score['weight'], $scores)) / 100, 4);
+        $this->value($sheet, 'M'.$start, $summary['value'], $calculated === (float) $summary['value'] ? $weighted : null);
         $this->value($sheet, 'N'.$start, (int) round($summary['value']), 'ROUND(M'.$start.',0)');
-        $this->value($sheet, 'O'.$start, $summary['grade'], $grade);
-        $merges->setAttribute('count', (string) $merges->getElementsByTagName('mergeCell')->length);
+        $this->value($sheet, 'O'.$start, $summary['grade'], SidangSettings::grade($summary['value'], $settings) === $summary['grade'] ? $grade : null);
+        foreach ($extra as $row) {
+            $this->append($group['rows'], $sheet->saveXML($row));
+            $row->remove();
+        }
     }
 
-    private function writeSk(DOMDocument $sheet, array $numbers, int $last): void
+    /** @return resource */
+    private function tempFile(array &$files)
     {
-        $merges = $sheet->getElementsByTagName('mergeCells')->item(0);
-        foreach ($merges->getElementsByTagName('mergeCell') as $merge) {
-            if ($merge->getAttribute('ref') === 'E12:E38') {
-                if (count(array_unique($numbers, SORT_REGULAR)) <= 1) {
-                    $merge->setAttribute('ref', 'E12:E'.$last);
-                    $this->value($sheet, 'E12', $numbers[0] ?? null);
+        $file = tmpfile();
+        if ($file === false) {
+            throw new RuntimeException('Gagal menyiapkan lembar rekap.');
+        }
+        $files[] = $file;
 
-                    return;
-                }
-                $merges->removeChild($merge);
-                break;
-            }
-        }
-        for ($index = 0, $count = count($numbers); $index < $count;) {
-            $number = $numbers[$index];
-            $start = 12 + $index * 3;
-            do {
-                $index++;
-            } while ($index < $count && $numbers[$index] === $number);
-            $this->merge($merges, 'E'.$start.':E'.(11 + $index * 3));
-            $this->value($sheet, 'E'.$start, $number);
-        }
-        $merges->setAttribute('count', (string) $merges->getElementsByTagName('mergeCell')->length);
+        return $file;
     }
 
-    private function insertBlock(DOMDocument $sheet, int $start): void
+    /** @param resource $file */
+    private function append($file, string $xml): void
     {
-        $data = $sheet->getElementsByTagName('sheetData')->item(0);
-        $merges = $sheet->getElementsByTagName('mergeCells')->item(0);
-        $footer = null;
-        foreach ($data->getElementsByTagName('row') as $row) {
-            if ((int) $row->getAttribute('r') >= $start) {
-                $footer ??= $row;
-                $this->moveRow($row, 3);
-            }
+        if (fwrite($file, $xml) !== strlen($xml)) {
+            throw new RuntimeException('Lembar rekap tidak dapat ditulis.');
         }
-        for ($offset = 0; $offset < 3; $offset++) {
-            $row = $this->row($sheet, 36 + $offset)->cloneNode(true);
-            $this->moveRow($row, $start - 36);
-            foreach ($row->getElementsByTagName('c') as $cell) {
-                $cell->replaceChildren();
-                $cell->removeAttribute('t');
-            }
-            $data->insertBefore($row, $footer);
+    }
+
+    /**
+     * @param  resource  $from
+     * @param  resource  $to
+     */
+    private function copyStream($from, $to): void
+    {
+        if (! rewind($from) || stream_copy_to_stream($from, $to) === false) {
+            throw new RuntimeException('Lembar rekap tidak dapat disalin.');
         }
-        foreach ($merges->getElementsByTagName('mergeCell') as $merge) {
-            $ref = $merge->getAttribute('ref');
-            $merge->setAttribute('ref', preg_replace_callback('/\\d+/', fn (array $match): int => (int) $match[0] + ((int) $match[0] >= $start ? 3 : 0), $ref));
-        }
-        foreach (['A', 'B', 'C', 'D', 'F', 'M', 'N', 'O'] as $column) {
-            $this->merge($merges, $column.$start.':'.$column.($start + 2));
-        }
-        $sheet->getElementsByTagName('dimension')->item(0)->setAttribute('ref', 'A1:O'.($start + 13));
+    }
+
+    private function spoolMerge(array &$group, string $range): void
+    {
+        $this->append($group['merges'], '<mergeCell ref="'.$range.'"/>');
+        $group['mergeCount']++;
     }
 
     private function moveRow(DOMElement $row, int $shift): void
@@ -268,11 +329,6 @@ final class SidangReportWriter
         } else {
             $this->element($cell, 'v', [])->textContent = (string) $value;
         }
-    }
-
-    private function merge(DOMElement $merges, string $range): void
-    {
-        $this->element($merges, 'mergeCell', ['ref' => $range]);
     }
 
     private function element(DOMElement $parent, string $name, array $attributes): DOMElement
