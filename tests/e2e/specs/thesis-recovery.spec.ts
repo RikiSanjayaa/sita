@@ -1117,7 +1117,10 @@ for (const type of ['sempro', 'sidang'] as const) {
                     }
                 }
                 await schedule
-                    .getByRole('button', { name: 'Submit', exact: true })
+                    .getByRole('button', {
+                        name: type === 'sidang' ? 'Simpan Jadwal' : 'Submit',
+                        exact: true,
+                    })
                     .click();
                 await expect(schedule).toBeHidden();
                 await student.goto('/mahasiswa/tugas-akhir');
