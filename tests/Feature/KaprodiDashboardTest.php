@@ -425,8 +425,10 @@ it('names at most one student and only on the leading permitted action item', fu
     // Hidden by capability, the supervisor item no longer leads; the next permitted item takes the single name.
     $otherProdi = ProgramStudi::factory()->create();
     dashboardStudent($otherProdi, 'Tanpa Pembimbing X', 'research');
-    dashboardStudent($otherProdi, 'Sempro Siap', 'sempro');
-    dashboardStudent($otherProdi, 'Sempro Siap Dua', 'sempro');
+    dashboardStudent($otherProdi, 'Sempro Siap', 'sempro')
+        ->forceFill(['updated_at' => now()->subMinute()])->save();
+    dashboardStudent($otherProdi, 'Sempro Siap Dua', 'sempro')
+        ->forceFill(['updated_at' => now()->subMinutes(2)])->save();
     $limited = dashboardItems(dashboardKaprodi($otherProdi, [KaprodiAssignment::CAPABILITY_MANAGE_SUPERVISORS => false]));
 
     expect(array_keys($limited))->toBe(['schedule-sempro'])
