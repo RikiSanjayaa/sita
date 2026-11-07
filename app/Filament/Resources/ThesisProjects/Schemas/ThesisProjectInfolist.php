@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\ThesisProjects\Schemas;
 
 use App\Filament\Resources\ThesisProjects\Tables\ThesisProjectsTable;
+use App\Filament\Resources\ThesisProjects\ThesisProjectResource;
 use App\Models\MentorshipDocument;
 use App\Models\ThesisDefense;
 use App\Models\ThesisDocument;
@@ -744,7 +745,7 @@ class ThesisProjectInfolist
             ->sortBy('attempt_no')
             ->map(fn(ThesisDefense $defense): array => [
                 'attempt' => '#'.$defense->attempt_no,
-                'paper_url' => $defense->type === 'sidang' ? route('sidang.paper.show', $defense) : null,
+                'paper_url' => $defense->type === 'sidang' ? ThesisProjectResource::getUrl('sidang-paper', ['record' => $defense->project_id, 'defense' => $defense]) : null,
                 'status' => self::defenseStatusLabel($defense->status),
                 'result' => self::defenseResultLabel($defense->result, $type),
                 'scheduled_for' => self::formatDefenseSchedule($defense),

@@ -194,7 +194,7 @@ Status tersebut berlaku untuk alur yang disebut pada barisnya, bukan seluruh cab
 | Search dan filter tabel setelah scroll nyata: kaprodi, dosen, mahasiswa dan publik; desktop sticky expanded/collapsed, mobile static dengan dialog Terapkan untuk semua filter, light/dark (#94/#167) | `table-sticky-filters`, `dosen-prodi-roles` | tercakup | P1 |
 | Baris tabel mobile ringkas di 390px (identitas dan aksi satu baris, meta sebaris), desktop tetap tabel (#129) | `compact-mobile-rows` | tercakup | P2 |
 | Tugas akhir cancelled/tergantikan tidak bocor di direktori, profil dan payload non-admin; publikasi completed terkini tetap tampil (#95)                                                                                                                                                                                                  | `project-visibility`, `profile-active-examiners`, plus Pest (`ProjectVisibilityTest`, `ProfileShowTest`) | tercakup | P1       |
-| Nilai Sidang satu sumber, input Dosen, pencocokan dan koreksi Admin, koreksi Dosen tanpa mengubah revisi, konflik isian lama, penguncian final, serta label hasil per peran | `sidang-scores`, `golden-path`, Pest `SidangPaperWorkflowTest` dan `SidangScoreTest` | tercakup | P1 |
+| Nilai Sidang satu sumber, koreksi Dosen, pencocokan nilai di panel Admin, kembali ke filter Kaprodi, konflik isian lama, penguncian final, dan label hasil per peran | `sidang-scores`, `golden-path`, Pest `SidangPaperWorkflowTest` dan `SidangScoreTest` | tercakup | P1 |
 
 ## Known gaps worth closing next
 

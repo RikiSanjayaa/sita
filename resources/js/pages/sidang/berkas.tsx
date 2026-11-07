@@ -1,4 +1,4 @@
-import { Head, useForm } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 import { ArrowLeft, Printer } from 'lucide-react';
 import { useRef, useState } from 'react';
 
@@ -17,6 +17,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import KaprodiLayout from '@/layouts/kaprodi-layout';
+import { neutralAcademicTerminology } from '@/lib/academic-terminology';
 import { print, store } from '@/routes/sidang/paper';
 
 const roles = {
@@ -62,9 +63,8 @@ interface Props {
     weights: Record<ScoreRole, number>;
     forms: Record<string, string>;
     backUrl: string;
-    fromQueue: boolean;
-    finalizeUrl: string | null;
-    admin: boolean;
+    studentProfileUrl: string;
+    returnFilters: Record<string, string | number>;
 }
 
 const selectClass =
@@ -100,9 +100,8 @@ export default function BerkasSidang({
     weights,
     forms,
     backUrl,
-    fromQueue,
-    finalizeUrl,
-    admin,
+    studentProfileUrl,
+    returnFilters,
 }: Props) {
     const examiners = defense.panel.filter((member) => !member.supervisor);
     const supervisors = defense.panel.filter((member) => member.supervisor);
@@ -157,19 +156,19 @@ export default function BerkasSidang({
         );
     const printUrl = print(defense.id).url;
     const storeUrl = store(defense.id, {
-        query: fromQueue ? { dari: 'daftar' } : {},
+        query: returnFilters,
     }).url;
     const content = (
         <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 md:px-6 lg:py-8">
-            <Head title={`Berkas ${defense.label}`} />
+            <Head title={`Berkas ${defense.label} - ${defense.name}`} />
             <PageHeader
                 title={`Berkas ${defense.label}`}
                 description={`${defense.name}${defense.nim ? ` · ${defense.nim}` : ''}`}
                 actions={
                     <Button asChild variant="outline">
-                        <a href={backUrl}>
+                        <Link href={backUrl}>
                             <ArrowLeft aria-hidden /> Kembali
-                        </a>
+                        </Link>
                     </Button>
                 }
             />
@@ -302,13 +301,6 @@ export default function BerkasSidang({
                                     Petugas berwenang dapat menetapkan hasil di
                                     detail Tugas Akhir pada panel admin.
                                 </p>
-                            )}
-                            {finalizeUrl && (
-                                <Button asChild variant="outline">
-                                    <a href={finalizeUrl}>
-                                        Buka finalisasi sidang
-                                    </a>
-                                </Button>
                             )}
                         </div>
                     )}
@@ -557,15 +549,18 @@ export default function BerkasSidang({
         </main>
     );
 
-    return admin ? (
-        <div className="min-h-screen bg-background text-foreground">
-            {content}
-        </div>
-    ) : (
+    return (
         <KaprodiLayout
             breadcrumbs={[
-                { title: 'Sidang Akhir', href: backUrl },
-                { title: 'Berkas Sidang', href: '#' },
+                {
+                    title: `${neutralAcademicTerminology.proposalExamShort} & ${neutralAcademicTerminology.finalExam}`,
+                    href: backUrl,
+                },
+                {
+                    title: `${defense.name}${defense.nim ? ` · ${defense.nim}` : ''}`,
+                    href: studentProfileUrl,
+                },
+                { title: `Berkas ${defense.label}`, href: '#' },
             ]}
         >
             {content}

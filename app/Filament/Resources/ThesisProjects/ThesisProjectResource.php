@@ -4,6 +4,7 @@ namespace App\Filament\Resources\ThesisProjects;
 
 use App\Filament\Resources\ThesisProjects\Pages\EditThesisProject;
 use App\Filament\Resources\ThesisProjects\Pages\ListThesisProjects;
+use App\Filament\Resources\ThesisProjects\Pages\ManageSidangPaper;
 use App\Filament\Resources\ThesisProjects\Pages\ViewThesisProject;
 use App\Filament\Resources\ThesisProjects\Schemas\ThesisProjectForm;
 use App\Filament\Resources\ThesisProjects\Schemas\ThesisProjectInfolist;
@@ -123,6 +124,7 @@ class ThesisProjectResource extends Resource
             'index' => ListThesisProjects::route('/'),
             'view' => ViewThesisProject::route('/{record}'),
             'edit' => EditThesisProject::route('/{record}/edit'),
+            'sidang-paper' => ManageSidangPaper::route('/{record}/berkas-sidang/{defense}'),
         ];
     }
 

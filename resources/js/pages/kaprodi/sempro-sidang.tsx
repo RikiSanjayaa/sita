@@ -773,6 +773,14 @@ export default function KaprodiSemproSidangPage() {
                                                                             href={
                                                                                 showSidangPaper(
                                                                                     item.id,
+                                                                                    {
+                                                                                        query: {
+                                                                                            search,
+                                                                                            type: typeFilter,
+                                                                                            status: statusFilter,
+                                                                                            page: pageState[0],
+                                                                                        },
+                                                                                    },
                                                                                 )
                                                                                     .url
                                                                             }

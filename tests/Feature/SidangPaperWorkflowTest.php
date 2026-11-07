@@ -2,6 +2,7 @@
 
 use App\Filament\Resources\ProgramStudis\Pages\EditProgramStudi;
 use App\Filament\Resources\ThesisProjects\Pages\ListThesisProjects;
+use App\Filament\Resources\ThesisProjects\Pages\ManageSidangPaper;
 use App\Filament\Resources\ThesisProjects\Pages\ViewThesisProject;
 use App\Filament\Resources\ThesisProjects\ThesisProjectResource;
 use App\Models\AdminProfile;
@@ -53,6 +54,54 @@ function sidangPaperFixture(?ProgramStudi $program = null): array
 
     return [$defense, $student, $program, $scores];
 }
+
+it('limits the native paper page to the selected project and the admin program', function (): void {
+    [$defense, $student, $program] = sidangPaperFixture();
+    [$foreign] = sidangPaperFixture();
+    $admin = User::factory()->asAdmin()->create();
+    AdminProfile::query()->create(['user_id' => $admin->id, 'program_studi_id' => $program->id]);
+    $this->actingAs($admin);
+
+    $url = fn ($project, $attempt): string => ThesisProjectResource::getUrl('sidang-paper', [
+        'record' => $project, 'defense' => $attempt, 'dari' => 'daftar',
+    ]);
+    $this->get(route('sidang.paper.show', ['defense' => $defense, 'dari' => 'daftar']))
+        ->assertRedirect($url($defense->project, $defense));
+    $this->get($url($defense->project, $defense))->assertOk()
+        ->assertSee($student->name)->assertSee('Nilai dari berkas')->assertSee('Unduh Paket Sidang');
+    $this->get($url($defense->project, $foreign))->assertNotFound();
+    $this->get($url($foreign->project, $foreign))->assertNotFound();
+});
+
+it('preserves a native admin draft when a lecturer has changed the source score', function (): void {
+    [$defense, , , $scores] = sidangPaperFixture();
+    $this->actingAs(User::factory()->asSuperAdmin()->create());
+    $page = Livewire::test(ManageSidangPaper::class, [
+        'record' => $defense->project_id, 'defense' => $defense->id,
+    ]);
+    $page->set('skData.sidang_sk', '007/UJI')->callAction('saveSk')->assertHasNoErrors();
+    expect($defense->fresh()->sidang_sk)->toBe('007/UJI');
+
+    foreach ($scores as $role => $entry) {
+        $page->set('scoreData.scores.'.$role.'.value', $entry['value']);
+    }
+    $page->mountAction('saveScores')->assertActionMounted('saveScores');
+    $member = $defense->examiners()->findOrFail($scores['examiner_1']['panel_id']);
+    $member->update(['score' => 87]);
+    $page->callMountedAction()->assertHasErrors(['scoreData.scores.examiner_1.value'])
+        ->assertSet('scoreData.scores.examiner_1.value', 90);
+    expect($member->fresh()->score)->toBe('87.00')
+        ->and($defense->fresh()->status)->toBe('scheduled');
+
+    $page = Livewire::test(ManageSidangPaper::class, [
+        'record' => $defense->project_id, 'defense' => $defense->id,
+    ]);
+    foreach ($scores as $role => $entry) {
+        $page->set('scoreData.scores.'.$role.'.value', $entry['value']);
+    }
+    $page->callAction('saveScores')->assertHasNoErrors()->assertSee('80,00');
+    expect($defense->fresh()->status)->toBe('awaiting_finalization');
+});
 
 it('opens and saves the sidang document and grade settings for a program', function (): void {
     $program = ProgramStudi::factory()->create();
@@ -229,7 +278,7 @@ it('lists only accessible latest sidang records and shows the shortcut for each 
         ->assertCanNotSeeTableRecords([$cancelled->project, $foreign->project])
         ->assertTableActionHasUrl('unduh_berkas_sidang', route('sidang.paper.print', $scheduled), $scheduled->project)
         ->assertTableActionHasLabel('tindakan_berkas_sidang', 'Input Nilai', $scheduled->project)
-        ->assertTableActionHasUrl('tindakan_berkas_sidang', route('sidang.paper.show', ['defense' => $scheduled, 'dari' => 'daftar']).'#nilai-dari-berkas', $scheduled->project)
+        ->assertTableActionHasUrl('tindakan_berkas_sidang', ThesisProjectResource::getUrl('sidang-paper', ['record' => $scheduled->project, 'defense' => $scheduled, 'dari' => 'daftar']).'#nilai-dari-berkas', $scheduled->project)
         ->assertTableActionHasLabel('tindakan_berkas_sidang', 'Lihat Berkas', $completed->project);
 
     $page->filterTable('sidang_paper_status', 'completed')
@@ -239,10 +288,10 @@ it('lists only accessible latest sidang records and shows the shortcut for each 
     $scheduled->update(['status' => 'awaiting_finalization']);
     Livewire::test(ListThesisProjects::class)
         ->set('activeTab', ListThesisProjects::SIDANG_PAPER_TAB)
-        ->assertTableActionHasLabel('tindakan_berkas_sidang', 'Finalisasi', $scheduled->project)
-        ->assertTableActionHasUrl('tindakan_berkas_sidang', ThesisProjectResource::getUrl('view', [
-            'record' => $scheduled->project, 'action' => 'complete_sidang',
-        ]), $scheduled->project);
+        ->assertTableActionHasLabel('tindakan_berkas_sidang', 'Tinjau & Finalisasi', $scheduled->project)
+        ->assertTableActionHasUrl('tindakan_berkas_sidang', ThesisProjectResource::getUrl('sidang-paper', [
+            'record' => $scheduled->project, 'defense' => $scheduled, 'dari' => 'daftar',
+        ]).'#nilai-dari-berkas', $scheduled->project);
 });
 
 function sidangReportSheet(string $content, string $part = 'xl/worksheets/sheet7.xml'): string
@@ -271,7 +320,7 @@ it('prints the scheduled identity, records actual panel totals, and exports only
     $this->post(route('sidang.paper.store', $defense), ['scores' => $scores])->assertForbidden();
 
     $defense->forceFill(['moderator_user_id' => $moderator->id])->save();
-    $this->actingAs($admin)->get(route('sidang.paper.show', $defense))->assertOk();
+    $this->actingAs($admin)->get(route('sidang.paper.show', $defense))->assertRedirect(ThesisProjectResource::getUrl('sidang-paper', ['record' => $defense->project, 'defense' => $defense]));
     $this->post(route('sidang.paper.store', $defense), ['sidang_sk' => '001/UJI'])
         ->assertSessionHasNoErrors()->assertRedirect();
     expect($defense->fresh()->sidang_sk)->toBe('001/UJI')
@@ -511,7 +560,9 @@ it('uses the same corrected score on manager, lecturer, student, Word and Excel 
     $admin = User::factory()->asSuperAdmin()->create();
     $scores['examiner_1']['value'] = 88.5;
     $this->actingAs($admin)->post(route('sidang.paper.store', $defense), ['scores' => $scores])->assertSessionHasNoErrors();
-    $this->get(route('sidang.paper.show', $defense))->assertInertia(fn (Assert $page) => $page
+    $head = User::factory()->asKaprodi()->create();
+    KaprodiAssignment::factory()->create(['user_id' => $head->id, 'program_studi_id' => $defense->project->program_studi_id]);
+    $this->actingAs($head)->get(route('sidang.paper.show', $defense))->assertInertia(fn (Assert $page) => $page
         ->where('defense.summary.value', 79.55)->where('defense.panel.0.source', 'paper')
         ->where('defense.panel.0.recordedBy', $admin->name)->where('defense.panel.0.verifiedBy', $admin->name));
     app(ThesisProjectAdminService::class)->completeSidang($defense->project, $admin->id, 'pass', 'Selesai.');
@@ -649,6 +700,11 @@ it('limits kaprodi to the own program for the paper, the Word packet and the Exc
     $this->actingAs($kaprodi->fresh());
 
     $this->get(route('sidang.paper.show', $own))->assertOk();
+    $filters = ['search' => 'Nama & NIM', 'type' => 'sidang', 'status' => 'completed', 'page' => '2'];
+    $this->get(route('sidang.paper.show', ['defense' => $own, ...$filters, 'returnTo' => 'https://example.test']))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('returnFilters', $filters)
+            ->where('backUrl', route('kaprodi.sempro-sidang', $filters)));
     $this->get(route('sidang.paper.print', $own))->assertOk();
     $this->get(route('sidang.paper.show', $foreign))->assertForbidden();
     $this->get(route('sidang.paper.print', $foreign))->assertForbidden();

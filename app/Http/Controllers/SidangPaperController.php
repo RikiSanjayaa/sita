@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Filament\Resources\ThesisProjects\Pages\ListThesisProjects;
+use App\Filament\Resources\ThesisProjects\ThesisProjectResource;
 use App\Http\Requests\StoreSidangPaperRequest;
 use App\Models\ThesisDefense;
 use App\Policies\SidangPaperPolicy;
@@ -28,15 +28,19 @@ class SidangPaperController extends Controller
         'revisi-pembimbing' => 'Catatan Perbaikan Pembimbing',
     ];
 
-    public function show(Request $request, ThesisDefense $defense, SidangPaperPolicy $policy): Response
+    public function show(Request $request, ThesisDefense $defense, SidangPaperPolicy $policy): Response|RedirectResponse
     {
         abort_unless($defense->type === 'sidang' && $policy->manage($request->user(), (int) $defense->project->program_studi_id), 403);
+        if ($request->user()->hasAnyRole(['admin', 'super_admin'])) {
+            return redirect(ThesisProjectResource::getUrl('sidang-paper', [
+                'record' => $defense->project_id, 'defense' => $defense,
+                'dari' => $request->query('dari') === 'daftar' ? 'daftar' : null,
+            ]));
+        }
         $defense->load('project.student.mahasiswaProfile', 'project.programStudi', 'titleVersion', 'examiners.lecturer.dosenProfile', 'examiners.scoreRecordedBy', 'examiners.paperVerifiedBy');
         $project = $defense->project;
         $scores = app(SidangScoreService::class);
         $summary = $scores->summary($defense);
-        $admin = $request->user()->hasRole('admin') || $request->user()->hasRole('super_admin');
-        $fromQueue = $admin && $request->query('dari') === 'daftar';
         $terms = AcademicTerminology::forProject($project);
 
         return Inertia::render('sidang/berkas', [
@@ -68,16 +72,9 @@ class SidangPaperController extends Controller
             ],
             'weights' => array_intersect_key(SidangSettings::forProgram($project->programStudi), SidangPaperService::ROLES),
             'forms' => self::FORMS,
-            'fromQueue' => $fromQueue,
-            'backUrl' => match (true) {
-                $fromQueue => route('filament.admin.resources.thesis-projects.index', ['tab' => ListThesisProjects::SIDANG_PAPER_TAB]),
-                $admin => route('filament.admin.resources.thesis-projects.view', $project),
-                default => route('kaprodi.sempro-sidang'),
-            },
-            'finalizeUrl' => $admin && $project->state === 'active' && $defense->status === 'awaiting_finalization'
-                ? route('filament.admin.resources.thesis-projects.view', ['record' => $project, 'action' => 'complete_sidang'])
-                : null,
-            'admin' => $admin,
+            'returnFilters' => $this->returnFilters($request),
+            'backUrl' => route('kaprodi.sempro-sidang', $this->returnFilters($request)),
+            'studentProfileUrl' => route('users.profile.show', ['user' => $project->student_user_id]),
         ]);
     }
 
@@ -88,7 +85,31 @@ class SidangPaperController extends Controller
         return to_route('sidang.paper.show', [
             'defense' => $defense,
             'dari' => $request->query('dari') === 'daftar' ? 'daftar' : null,
+            ...$this->returnFilters($request),
         ])->with('success', 'Data berkas sidang disimpan.');
+    }
+
+    /** @return array<string, string> */
+    private function returnFilters(Request $request): array
+    {
+        $filters = [];
+        foreach (['search', 'type', 'status', 'page'] as $key) {
+            $value = $request->query($key);
+            if (is_string($value) && $value !== '' && mb_strlen($value) <= 200) {
+                $filters[$key] = $value;
+            }
+        }
+        if (isset($filters['type']) && ! in_array($filters['type'], ['sempro', 'sidang'], true)) {
+            unset($filters['type']);
+        }
+        if (isset($filters['status']) && ! in_array($filters['status'], ['scheduled', 'awaiting_finalization', 'completed'], true)) {
+            unset($filters['status']);
+        }
+        if (isset($filters['page']) && filter_var($filters['page'], FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) === false) {
+            unset($filters['page']);
+        }
+
+        return $filters;
     }
 
     public function print(Request $request, ThesisDefense $defense, SidangPaperPolicy $policy, SidangWordWriter $writer): StreamedResponse

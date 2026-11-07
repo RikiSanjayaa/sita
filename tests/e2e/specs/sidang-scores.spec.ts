@@ -6,6 +6,11 @@ import { authStatePath, thesisScenarios } from '../support/thesis-fixtures';
 
 const scenario = thesisScenarios.sidangWithPanel;
 
+const adminScore = (page: Page, label: string) =>
+    page.getByRole('spinbutton', { name: new RegExp(`^${label}\\b`) });
+
+test.use({ actionTimeout: 15_000 });
+
 async function capture(page: Page, testInfo: TestInfo, name: string) {
     const modalOpen =
         (await page
@@ -47,9 +52,12 @@ async function capture(page: Page, testInfo: TestInfo, name: string) {
 
 async function openLecturer(page: Page) {
     await page.goto('/dosen/seminar-proposal');
-    await page
-        .getByRole('radio', { name: 'Sidang Akhir', exact: true })
-        .click();
+    const sidang = page.getByRole('radio', {
+        name: 'Sidang Akhir',
+        exact: true,
+    });
+    await expect(sidang).toBeVisible();
+    await sidang.click();
     await page.getByPlaceholder(/Cari nama/i).fill(scenario.studentName);
     const row = page
         .getByRole('row')
@@ -84,7 +92,8 @@ test('lecturer and admin correct the same sidang scores until finalization', asy
         admin.on('request', (request) => {
             if (
                 request.method() === 'POST' &&
-                /\/berkas-sidang$/.test(request.url())
+                /\/livewire(?:-[a-z0-9]+)?\/update$/.test(request.url()) &&
+                request.postData()?.includes('"method":"callMountedAction"')
             )
                 paperWrites++;
         });
@@ -134,26 +143,48 @@ test('lecturer and admin correct the same sidang scores until finalization', asy
             await head
                 .getByRole('menuitem', { name: 'Kelola berkas sidang' })
                 .click();
-            await expect(head).toHaveURL(/\/defenses\/\d+\/berkas-sidang$/);
+            await expect(head).toHaveURL(/\/defenses\/\d+\/berkas-sidang\?/);
+            const headPaperUrl = head.url();
+            await expect(head).toHaveTitle(new RegExp(scenario.studentName));
+            await expect(
+                head
+                    .locator('[data-sidebar="menu-button"][data-active="true"]')
+                    .filter({ hasText: /Sempro.*Sidang Akhir/ }),
+            ).toBeVisible();
+            await head
+                .getByRole('link', { name: 'Kembali', exact: true })
+                .click();
+            await expect(
+                head.getByPlaceholder('Cari nama, NIM, judul, atau dosen...'),
+            ).toHaveValue(scenario.studentName);
+            await head.goto(headPaperUrl);
             await admin.goto(head.url());
-            await expect(admin.getByLabel('Nilai penguji 1')).toHaveValue(
-                '88.50',
+            await expect(admin).toHaveURL(
+                /\/admin\/thesis-projects\/\d+\/berkas-sidang\/\d+$/,
             );
-            await expect(admin.getByLabel('Nilai penguji 1')).toBeEditable();
-            await admin.getByLabel('Nilai penguji 2').fill('70');
-            await admin.getByLabel('Nilai pembimbing penilai').fill('80');
+            await expect(admin.locator('.fi-sidebar')).toBeVisible();
+            await expect(adminScore(admin, 'Nilai penguji 1')).toHaveValue(
+                /^88\.5(0)?$/,
+            );
+            await expect(adminScore(admin, 'Nilai penguji 1')).toBeEditable();
+            await adminScore(admin, 'Nilai penguji 2').fill('70');
+            await adminScore(admin, 'Nilai pembimbing penilai').fill('80');
             await admin
                 .getByRole('button', { name: 'Simpan untuk Finalisasi' })
                 .click();
-            const confirmation = admin.getByRole('dialog', {
-                name: 'Konfirmasi nilai dari berkas',
-            });
-            await expect(confirmation).toContainText('88.50');
+            const confirmation = admin
+                .locator('.fi-modal-window:visible')
+                .filter({
+                    hasText: 'Konfirmasi nilai dari berkas',
+                });
+            await expect(confirmation).toContainText('88,50');
             await capture(admin, testInfo, 'admin-konfirmasi-nilai');
             await confirmation
                 .getByRole('button', { name: 'Batal', exact: true })
                 .click();
-            await expect(admin.getByLabel('Nilai penguji 2')).toHaveValue('70');
+            await expect(adminScore(admin, 'Nilai penguji 2')).toHaveValue(
+                '70',
+            );
             expect(paperWrites).toBe(0);
             await admin
                 .getByRole('button', { name: 'Simpan untuk Finalisasi' })
@@ -162,7 +193,7 @@ test('lecturer and admin correct the same sidang scores until finalization', asy
                 .getByRole('button', { name: 'Konfirmasi Simpan Nilai' })
                 .dblclick();
             await expect(
-                admin.getByText('Nilai akhir 79,55 · Grade B+'),
+                admin.getByText('79,55 (B+)', { exact: true }),
             ).toBeVisible();
             await expect(admin.getByText(/Cocok dengan berkas/)).toHaveCount(3);
             expect(paperWrites).toBe(1);
@@ -215,28 +246,30 @@ test('lecturer and admin correct the same sidang scores until finalization', asy
         });
 
         await test.step('Stale admin input fails visibly and preserves the correction draft', async () => {
-            await admin.getByLabel('Nilai penguji 1').fill('90');
+            await adminScore(admin, 'Nilai penguji 1').fill('90');
             await admin
                 .getByRole('button', { name: 'Simpan Koreksi / Pencocokan' })
                 .click();
             await admin
                 .getByRole('button', { name: 'Konfirmasi Simpan Nilai' })
                 .click();
-            await expect(admin.getByRole('alert')).toContainText(
-                'Nilai sudah berubah.',
+            await expect(
+                admin.getByText(/Nilai sudah berubah/).first(),
+            ).toBeVisible();
+            await expect(adminScore(admin, 'Nilai penguji 1')).toHaveValue(
+                '90',
             );
-            await expect(admin.getByLabel('Nilai penguji 1')).toHaveValue('90');
             await capture(admin, testInfo, 'admin-konflik-nilai');
             await admin.reload();
-            await expect(admin.getByLabel('Nilai penguji 1')).toHaveValue(
-                '87.50',
+            await expect(adminScore(admin, 'Nilai penguji 1')).toHaveValue(
+                /^87\.5(0)?$/,
             );
             await expect(
                 admin.getByText('Belum dicocokkan dengan berkas.', {
-                    exact: true,
+                    exact: false,
                 }),
             ).toHaveCount(1);
-            await admin.getByLabel('Nilai penguji 1').fill('90');
+            await adminScore(admin, 'Nilai penguji 1').fill('90');
             await admin
                 .getByRole('button', { name: 'Simpan Koreksi / Pencocokan' })
                 .click();
@@ -244,7 +277,7 @@ test('lecturer and admin correct the same sidang scores until finalization', asy
                 .getByRole('button', { name: 'Konfirmasi Simpan Nilai' })
                 .click();
             await expect(
-                admin.getByText('Nilai akhir 80 · Grade B+'),
+                admin.getByText('80,00 (B+)', { exact: true }),
             ).toBeVisible();
         });
 
@@ -275,8 +308,9 @@ test('lecturer and admin correct the same sidang scores until finalization', asy
         });
 
         await test.step('Admin finalizes, the student sees factual paper labels, and score controls are locked', async () => {
+            const adminPaperUrl = admin.url();
             await admin
-                .getByRole('link', { name: 'Buka finalisasi sidang' })
+                .getByRole('link', { name: 'Finalisasi Sidang', exact: true })
                 .click();
             const modal = admin.locator('.fi-modal-window:visible').last();
             await pickFilamentSelect(modal, 0, 'pass');
@@ -298,6 +332,9 @@ test('lecturer and admin correct the same sidang scores until finalization', asy
                 .getByRole('tab', { name: 'Ujian', exact: true })
                 .click();
             await capture(admin, testInfo, 'admin-riwayat-nilai');
+            await admin.goto(adminPaperUrl);
+            await expect(adminScore(admin, 'Nilai penguji 1')).toBeDisabled();
+            await capture(admin, testInfo, 'admin-berkas-selesai');
             await student.goto('/mahasiswa/tugas-akhir');
             await expect(
                 student.getByText('Nilai dari berkas', { exact: true }).first(),

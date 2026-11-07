@@ -361,7 +361,7 @@ class ThesisProjectsTable
                     ->url(fn (ThesisProject $record): string => route('sidang.paper.print', $record->latestSidangDefense)),
                 Action::make('tindakan_berkas_sidang')
                     ->label(fn (ThesisProject $record): string => match (self::sidangPaperActionStatus($record)) {
-                        'awaiting_finalization' => 'Finalisasi',
+                        'awaiting_finalization' => 'Tinjau & Finalisasi',
                         'scheduled' => 'Input Nilai',
                         default => 'Lihat Berkas',
                     })
@@ -374,12 +374,9 @@ class ThesisProjectsTable
                     ->url(function (ThesisProject $record): string {
                         $defense = $record->latestSidangDefense;
                         $status = self::sidangPaperActionStatus($record);
-                        if ($status === 'awaiting_finalization') {
-                            return ThesisProjectResource::getUrl('view', ['record' => $record, 'action' => 'complete_sidang']);
-                        }
 
-                        return route('sidang.paper.show', ['defense' => $defense, 'dari' => 'daftar'])
-                            .($status === 'scheduled' ? '#nilai-dari-berkas' : '');
+                        return ThesisProjectResource::getUrl('sidang-paper', ['record' => $record, 'defense' => $defense, 'dari' => 'daftar'])
+                            .(in_array($status, ['scheduled', 'awaiting_finalization'], true) ? '#nilai-dari-berkas' : '');
                     }),
                 Action::make('approve_title')
                     ->label('Setujui')

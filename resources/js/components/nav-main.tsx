@@ -39,7 +39,9 @@ export function NavMain({
                             <SidebarMenuButton
                                 asChild
                                 className="relative group-data-[collapsible=icon]:overflow-visible max-md:h-11"
-                                isActive={urlIsActive(item.href)}
+                                isActive={
+                                    item.isActive ?? urlIsActive(item.href)
+                                }
                                 tooltip={{ children: accessibleLabel }}
                             >
                                 {typeof item.href === 'string' &&

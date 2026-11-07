@@ -695,7 +695,7 @@ function ScoreCorrection({ item }: { item: DefenseItem }) {
                             </p>
                         )}
                     </div>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-pretty text-muted-foreground">
                         Nilai dapat dikoreksi sebelum finalisasi sidang.
                         Cocokkan kembali dengan lembar penilaian.
                     </p>
@@ -869,32 +869,38 @@ function DefenseDetailSheet({
                             ]}
                         />
 
-                        <Button
-                            asChild
-                            size="sm"
-                            variant="outline"
-                            className="max-md:h-11"
-                        >
-                            <Link href={item.chatUrl}>
-                                <MessageSquare
-                                    aria-hidden="true"
-                                    className="size-4"
-                                />
-                                {item.chatLabel}
-                            </Link>
-                        </Button>
-                        {item.paperUrl && (
+                        <div className="flex flex-wrap items-center gap-2">
                             <Button
                                 asChild
                                 size="sm"
                                 variant="outline"
                                 className="max-md:h-11"
                             >
-                                <a href={item.paperUrl}>
-                                    Unduh Paket Sidang (.docx)
-                                </a>
+                                <Link href={item.chatUrl}>
+                                    <MessageSquare
+                                        aria-hidden="true"
+                                        className="size-4"
+                                    />
+                                    {item.chatLabel}
+                                </Link>
                             </Button>
-                        )}
+                            {item.paperUrl && (
+                                <Button
+                                    asChild
+                                    size="sm"
+                                    variant="outline"
+                                    className="max-md:h-11"
+                                >
+                                    <a href={item.paperUrl}>
+                                        <Download
+                                            aria-hidden="true"
+                                            className="size-4"
+                                        />
+                                        Unduh Paket Sidang (.docx)
+                                    </a>
+                                </Button>
+                            )}
+                        </div>
 
                         <section aria-labelledby="exam-documents-heading">
                             <h3
