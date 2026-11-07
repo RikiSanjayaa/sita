@@ -6,7 +6,6 @@ use App\Models\ThesisDefense;
 use App\Models\ThesisProject;
 use App\Models\User;
 use App\Policies\SidangPaperPolicy;
-use App\Support\SidangSettings;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -54,10 +53,10 @@ final class SidangPaperService
     {
         DB::transaction(function () use ($defense, $actor, $data): void {
             $defense = ThesisDefense::query()->lockForUpdate()->findOrFail($defense->id);
-            $defense->load('examiners.lecturer.dosenProfile', 'project.programStudi');
-            $this->ensure($defense->type === 'sidang' && in_array($defense->status, ['scheduled', 'awaiting_finalization'], true)
-                && $defense->sidang_paper === null && $defense->project->state === 'active',
-                'Sidang ini sudah diproses atau tidak lagi terjadwal.');
+            $defense->load(['examiners' => fn ($query) => $query->orderBy('id')->lockForUpdate(), 'project.programStudi']);
+            abort_unless(app(SidangPaperPolicy::class)->manage($actor, (int) $defense->project->program_studi_id), 403);
+            $scoreService = app(SidangScoreService::class);
+            $this->ensure($scoreService->editable($defense), 'Sidang ini sudah difinalisasi atau tidak lagi terjadwal.');
 
             $moderator = array_key_exists('moderator_user_id', $data)
                 ? $data['moderator_user_id']
@@ -80,33 +79,23 @@ final class SidangPaperService
                 return;
             }
 
-            $settings = SidangSettings::forProgram($defense->project->programStudi);
-            $scores = [];
-            $weighted = 0.0;
+            $ids = [];
             foreach (self::ROLES as $role => $label) {
                 $entry = $data['scores'][$role] ?? [];
                 $panel = $defense->examiners->find((int) ($entry['panel_id'] ?? 0));
                 $this->ensure($panel && ($role === 'supervisor' ? $panel->isSupervisorRole() : $panel->role === 'examiner'),
                     'Pilih anggota panel yang sesuai untuk '.$label.'.');
-                $value = (float) $entry['value'];
-                $this->ensure($panel->score === null || (float) $panel->score === $value,
-                    'Nilai '.$label.' sudah tercatat. Gunakan nilai yang tercatat atau selesaikan koreksinya terlebih dahulu.');
-                $panel->forceFill(['score' => $value])->save();
-                $weight = (int) $settings[$role];
-                $weighted += $value * $weight;
-                $scores[$role] = [
-                    'panel_id' => $panel->id, 'name' => $panel->lecturer?->name,
-                    'nidn' => $panel->lecturer?->dosenProfile?->sidang_nidn,
-                    'value' => $value, 'weight' => $weight,
-                ];
+                if (array_key_exists('expected_value', $entry)) {
+                    $scoreService->assertCurrent($panel, $entry['expected_value'], 'scores.'.$role.'.value');
+                }
+                $scoreService->write($panel, $actor, $entry['value'] ?? null, 'paper', verify: true);
+                $ids[$role] = $panel->id;
             }
-            $this->ensure(count(array_unique(array_column($scores, 'panel_id'))) === 3, 'Ketiga penilai harus berbeda.');
-            $score = round($weighted / 100, 4);
+            $this->ensure(count(array_unique($ids)) === 3, 'Ketiga penilai harus berbeda.');
             $defense->forceFill([
                 'sidang_paper' => [
                     'recorded_by' => $actor->id, 'recorded_at' => now()->toIso8601String(),
-                    'scores' => $scores, 'value' => $score, 'grade' => SidangSettings::grade($score, $settings),
-                    'settings' => $settings,
+                    'panel_ids' => $ids,
                 ],
                 'status' => 'awaiting_finalization',
             ])->save();

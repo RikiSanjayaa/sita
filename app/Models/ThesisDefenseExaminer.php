@@ -34,6 +34,8 @@ class ThesisDefenseExaminer extends Model
             'score' => 'decimal:2',
             'revision_items' => 'array',
             'decided_at' => 'datetime',
+            'score_recorded_at' => 'datetime',
+            'paper_verified_at' => 'datetime',
         ];
     }
 
@@ -45,6 +47,16 @@ class ThesisDefenseExaminer extends Model
     public function lecturer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'lecturer_user_id');
+    }
+
+    public function scoreRecordedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'score_recorded_by');
+    }
+
+    public function paperVerifiedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'paper_verified_by');
     }
 
     /**

@@ -756,7 +756,9 @@ class ThesisProjectInfolist
                         '%s - %s - %s%s',
                         $examiner->lecturer?->name ?? '-',
                         self::defenseRoleLabel($examiner->role, $examiner->order_no),
-                        self::examinerDecisionLabel($examiner->decision),
+                        $defense->type === 'sidang' && $examiner->decision === 'pending' && $examiner->score !== null
+                            ? ($examiner->score_source === 'paper' ? 'Nilai dari berkas' : 'Nilai tercatat')
+                            : self::examinerDecisionLabel($examiner->decision),
                         $examiner->score !== null ? sprintf(' - Nilai %s', $examiner->score) : '',
                     ))
                     ->values()

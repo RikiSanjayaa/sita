@@ -47,6 +47,7 @@ class SubmitDefenseDecisionRequest extends FormRequest
                 Rule::in($isSempro ? ['pass', 'fail'] : ['pass', 'pass_with_revision', 'fail']),
             ],
             'score' => $scoreRules,
+            'expected_score' => ['sometimes', 'nullable', 'numeric', 'between:0,100'],
             'decision_notes' => $isSempro && $defense->requiresScore()
                 ? ['required', 'string', 'max:2000']
                 : ['nullable', 'string', 'max:2000'],

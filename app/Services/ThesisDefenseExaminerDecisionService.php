@@ -34,7 +34,8 @@ class ThesisDefenseExaminerDecisionService
                 throw new RuntimeException('Anda bukan penguji untuk ujian ini.');
             }
 
-            if ($defense->status !== 'scheduled') {
+            $scoreService = app(SidangScoreService::class);
+            if ($defense->type === 'sidang' ? ! $scoreService->editable($defense) : $defense->status !== 'scheduled') {
                 throw new RuntimeException('Ujian tidak dalam status yang dapat dinilai.');
             }
 
@@ -43,6 +44,13 @@ class ThesisDefenseExaminerDecisionService
             }
 
             $requestsRevision = $data['decision'] === 'pass_with_revision';
+
+            if ($defense->type === 'sidang') {
+                if (array_key_exists('expected_score', $data)) {
+                    $scoreService->assertCurrent($examiner, $data['expected_score'], 'score');
+                }
+                $scoreService->write($examiner, $lecturer, $data['score'] ?? null, 'lecturer');
+            }
 
             $examiner->forceFill([
                 'decision' => $data['decision'],
@@ -141,6 +149,10 @@ class ThesisDefenseExaminerDecisionService
         $decisions = $defense->examiners->pluck('decision');
 
         if ($decisions->isEmpty() || $decisions->contains('pending')) {
+            if ($defense->type === 'sidang' && isset($defense->sidang_paper['recorded_at'])
+                && app(SidangScoreService::class)->summary($defense) !== null) {
+                return;
+            }
             $defense->forceFill([
                 'status' => 'scheduled',
                 'result' => 'pending',

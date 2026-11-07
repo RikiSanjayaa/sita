@@ -106,6 +106,8 @@ class KaprodiPortalService
             ->with([
                 'project.student.mahasiswaProfile',
                 'project.latestTitle',
+                'project.programStudi',
+                'examiners.lecturer.dosenProfile',
                 ...DefenseRevisionLog::RELATIONS,
             ])
             ->latest('scheduled_for')
@@ -115,6 +117,7 @@ class KaprodiPortalService
             ->groupBy('project_id')->map(fn (Collection $attempts): int => $attempts->max('attempt_no'));
         $reportPeriodService = app(SidangReportPeriodService::class);
         $reportPeriods = $reportPeriodService->periods($programStudi->id);
+        $scoreSummaries = $defenses->mapWithKeys(fn (ThesisDefense $defense): array => [$defense->id => app(SidangScoreService::class)->summary($defense)]);
 
         return [
             'programStudi' => $this->programStudiSummary($programStudi),
@@ -142,11 +145,11 @@ class KaprodiPortalService
                 'status' => $this->statusLabel($defense->status),
                 'statusKey' => $defense->status,
                 'result' => $this->defenseResultLabel($defense),
-                'averageScore' => $defense->sidang_paper['value'] ?? $this->averageScore($defense),
+                'averageScore' => $scoreSummaries[$defense->id]['value'] ?? $this->averageScore($defense),
                 'scoreRequired' => $defense->requiresScore(),
-                'grade' => $defense->sidang_paper['grade'] ?? $this->grade($this->averageScore($defense)),
-                'paperRecorded' => $defense->sidang_paper !== null,
-                'readyForReport' => $defense->sidang_paper !== null && $defense->status === 'completed'
+                'grade' => $scoreSummaries[$defense->id]['grade'] ?? $this->grade($this->averageScore($defense)),
+                'paperRecorded' => isset($defense->sidang_paper['recorded_at']),
+                'readyForReport' => $scoreSummaries[$defense->id] !== null && $defense->status === 'completed'
                     && in_array($defense->result, ['pass', 'pass_with_revision'], true)
                     && $defense->attempt_no === $latestSidangAttempts->get($defense->project_id),
                 'student' => $defense->project?->student?->name ?? 'Mahasiswa',
@@ -170,7 +173,9 @@ class KaprodiPortalService
                         'id' => $examiner->lecturer_user_id,
                         'name' => $examiner->lecturer?->name ?? '-',
                         'role' => $this->examinerRoleLabel($examiner->role),
-                        'decision' => $this->defenseDecisionLabel($defense, $examiner->decision),
+                        'decision' => $defense->type === 'sidang' && $examiner->decision === 'pending' && $examiner->score !== null
+                            ? ($examiner->score_source === 'paper' ? 'Nilai dari berkas' : 'Nilai tercatat')
+                            : $this->defenseDecisionLabel($defense, $examiner->decision),
                         'score' => $examiner->score,
                         'profileUrl' => route('users.profile.show', ['user' => $examiner->lecturer_user_id]),
                     ])

@@ -7,6 +7,7 @@ use App\Http\Requests\StoreSidangPaperRequest;
 use App\Models\ThesisDefense;
 use App\Policies\SidangPaperPolicy;
 use App\Services\SidangPaperService;
+use App\Services\SidangScoreService;
 use App\Services\SidangWordWriter;
 use App\Support\AcademicTerminology;
 use App\Support\SidangSettings;
@@ -30,8 +31,10 @@ class SidangPaperController extends Controller
     public function show(Request $request, ThesisDefense $defense, SidangPaperPolicy $policy): Response
     {
         abort_unless($defense->type === 'sidang' && $policy->manage($request->user(), (int) $defense->project->program_studi_id), 403);
-        $defense->load('project.student.mahasiswaProfile', 'project.programStudi', 'titleVersion', 'examiners.lecturer');
+        $defense->load('project.student.mahasiswaProfile', 'project.programStudi', 'titleVersion', 'examiners.lecturer.dosenProfile', 'examiners.scoreRecordedBy', 'examiners.paperVerifiedBy');
         $project = $defense->project;
+        $scores = app(SidangScoreService::class);
+        $summary = $scores->summary($defense);
         $admin = $request->user()->hasRole('admin') || $request->user()->hasRole('super_admin');
         $fromQueue = $admin && $request->query('dari') === 'daftar';
         $terms = AcademicTerminology::forProject($project);
@@ -41,8 +44,7 @@ class SidangPaperController extends Controller
                 'id' => $defense->id,
                 'label' => $terms['finalExam'].' #'.$defense->attempt_no,
                 'status' => $defense->status,
-                'editable' => in_array($defense->status, ['scheduled', 'awaiting_finalization'], true)
-                    && $defense->sidang_paper === null && $project->state === 'active',
+                'editable' => $scores->editable($defense),
                 'canPrint' => $defense->scheduled_for !== null && $defense->status !== 'cancelled',
                 'name' => $project->student?->name,
                 'nim' => $project->student?->mahasiswaProfile?->nim,
@@ -55,10 +57,14 @@ class SidangPaperController extends Controller
                     'name' => $examiner->lecturer?->name ?? '-',
                     'supervisor' => $examiner->isSupervisorRole(),
                     'score' => $examiner->score,
+                    'recordedBy' => $examiner->scoreRecordedBy?->name,
+                    'recordedAt' => WitaDateTime::formatOrNull($examiner->score_recorded_at),
+                    'source' => $examiner->score_source,
+                    'verifiedBy' => $examiner->paperVerifiedBy?->name,
+                    'verifiedAt' => WitaDateTime::formatOrNull($examiner->paper_verified_at),
                 ]),
-                'summary' => $defense->sidang_paper === null ? null : [
-                    'value' => $defense->sidang_paper['value'], 'grade' => $defense->sidang_paper['grade'],
-                ],
+                'panelIds' => $scores->panelIds($defense),
+                'summary' => $summary === null ? null : ['value' => $summary['value'], 'grade' => $summary['grade']],
             ],
             'weights' => array_intersect_key(SidangSettings::forProgram($project->programStudi), SidangPaperService::ROLES),
             'forms' => self::FORMS,

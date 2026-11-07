@@ -1015,6 +1015,11 @@ test.describe('Golden path: from title proposal to graduation', () => {
                     student,
                     'Sidang Akhir',
                 );
+                // Two examiners and the first supervisor use the same weighted score as the paper route.
+                await openDefenseSheet(pageOf.fajar, student, 'Sidang Akhir');
+                await expect(
+                    pageOf.fajar.getByText(/Nilai akhir 86\.80/),
+                ).toBeVisible();
                 await attachStageScreenshot(
                     testInfo,
                     pageOf.fajar,

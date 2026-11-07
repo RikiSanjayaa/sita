@@ -43,6 +43,14 @@ Tes regresi tahap ini mencakup pengaturan 0/1/2/3, migrasi yang mempertahankan d
 
 ## 3. Nilai, riwayat input, dan finalisasi
 
+### Penerapan tahap kedua
+
+`SidangScoreService` membaca nilai panel untuk seluruh portal, Word, dan Excel. Input berkas menyimpan pilihan penilai serta penanda pencocokan. Koreksi Admin dan Dosen dicatat pada `thesis_defense_score_changes`, dengan penginput terakhir dan waktu pada baris panel. Perubahan skor membatalkan pencocokan lama. Form menolak isian yang sudah tertinggal dari nilai terbaru dan mempertahankan draf ketika ditolak.
+
+Pembacaan memakai bobot dan ambang prodi yang berlaku sampai finalisasi. Finalisasi menyimpan hasil turunan, ID penilai, bobot, dan ambang. Usulan otomatis memilih dua penguji pertama serta pembimbing pertama berdasarkan urutan panel. Admin dapat mengganti pilihan pembimbing penilai sebelum finalisasi. Panel satu penguji dan dua pembimbing tetap mengikuti jalur keputusan lama dan belum dipetakan ke rumus dua penguji. Profil bobot untuk susunan tersebut masih membutuhkan keputusan pemilik produk.
+
+Migrasi data hanya mengisi skor panel yang kosong dari JSON lama dengan ID dan peran yang valid. Skor panel yang berbeda dan snapshot final lama dipertahankan. Hasil digital lama yang selesai, lengkap, dan belum punya snapshot memakai baseline bobot prodi saat migrasi, ditandai `settings_origin = program_at_migration`. Tanggal finalisasi hanya diisi bila sudah ada pada data lama. Jalankan `php artisan sidang:audit-scores` untuk melihat JSON per baris konflik atau panel yang belum dapat dipetakan. Metadata lama ditampilkan sebatas informasi yang tersedia.
+
 **File utama** — `app/Services/SidangPaperService.php`, `app/Services/ThesisDefenseExaminerDecisionService.php`, `app/Services/ThesisProjectAdminService.php`, `app/Models/ThesisDefenseExaminer.php`, `app/Http/Requests/StoreSidangPaperRequest.php`, `app/Policies/SidangPaperPolicy.php`, dan controller yang memasok hasil ke Admin, Dosen, Kaprodi, serta Mahasiswa.
 
 1. Jadikan `thesis_defense_examiners.score` sumber skor setiap dosen. Jalur dari berkas dan jalur portal dosen sama-sama menulis baris panel yang berwenang. Pertahankan rentang 0–100, tiga penilai berbeda untuk profil rekap tiga slot, validasi bahwa setiap ID berasal dari attempt yang sama, dan pembatasan akses per prodi. Dosen hanya mengubah skornya sendiri. Pisahkan jalur koreksi skor dari pengiriman keputusan dosen agar koreksi tidak menghapus keputusan, revisi, atau lampiran sebelumnya. Pertahankan aturan Sempro dan Sinopsis.

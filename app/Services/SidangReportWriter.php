@@ -112,8 +112,9 @@ final class SidangReportWriter
         }
         $merges = $sheet->getElementsByTagName('mergeCells')->item(0);
         $student = $defense->project->student;
-        $scores = $defense->sidang_paper['scores'];
-        $settings = $defense->sidang_paper['settings'];
+        $summary = app(SidangScoreService::class)->summary($defense);
+        $scores = $summary['scores'];
+        $settings = $summary['settings'];
         $supervisors = $defense->examiners->filter(fn ($member) => $member->isSupervisorRole())->sortBy('role')->values();
         foreach ([
             'A' => $number, 'B' => $student?->name, 'C' => (string) $student?->mahasiswaProfile?->nim,
@@ -148,9 +149,9 @@ final class SidangReportWriter
         foreach (array_reverse(SidangSettings::GRADE_KEYS, true) as $index => $key) {
             $grade = sprintf('IF(M%d>=%d,"%s",%s)', $start, $settings[$key], SidangSettings::GRADES[$index], $grade);
         }
-        $this->value($sheet, 'M'.$start, (float) $defense->sidang_paper['value'], $weighted);
-        $this->value($sheet, 'N'.$start, (int) round($defense->sidang_paper['value']), 'ROUND(M'.$start.',0)');
-        $this->value($sheet, 'O'.$start, $defense->sidang_paper['grade'], $grade);
+        $this->value($sheet, 'M'.$start, $summary['value'], $weighted);
+        $this->value($sheet, 'N'.$start, (int) round($summary['value']), 'ROUND(M'.$start.',0)');
+        $this->value($sheet, 'O'.$start, $summary['grade'], $grade);
         $merges->setAttribute('count', (string) $merges->getElementsByTagName('mergeCell')->length);
     }
 

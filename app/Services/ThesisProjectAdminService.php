@@ -694,6 +694,8 @@ class ThesisProjectAdminService
                 throw new RuntimeException($terminology['finalExamShort'].' belum siap ditetapkan. Tunggu seluruh dosen penguji mengirim keputusan.');
             }
 
+            app(SidangScoreService::class)->snapshot($defense);
+
             $defense->forceFill([
                 'status' => 'completed',
                 'result' => $result,

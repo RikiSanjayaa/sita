@@ -15,10 +15,13 @@ use App\Models\User;
 use App\Services\SidangPaperService;
 use App\Services\SidangReportPeriodService;
 use App\Services\SidangReportWriter;
+use App\Services\SidangScoreService;
+use App\Services\ThesisDefenseExaminerDecisionService;
 use App\Services\ThesisProjectAdminService;
 use App\Support\SidangSettings;
 use Database\Seeders\AcademicStructureSeeder;
 use Illuminate\Validation\ValidationException;
+use Inertia\Testing\AssertableInertia as Assert;
 use Livewire\Livewire;
 
 function sidangPaperFixture(?ProgramStudi $program = null): array
@@ -279,8 +282,8 @@ it('prints the scheduled identity, records actual panel totals, and exports only
 
     expect($defense->fresh()->status)->toBe('awaiting_finalization')
         ->and($defense->fresh()->moderator_user_id)->toBe($moderator->id)
-        ->and($defense->fresh()->sidang_paper['value'])->toEqual(80)
-        ->and($defense->fresh()->sidang_paper['grade'])->toBe('B+')
+        ->and(app(SidangScoreService::class)->summary($defense->fresh())['value'])->toEqual(80)
+        ->and(app(SidangScoreService::class)->summary($defense->fresh())['grade'])->toBe('B+')
         ->and($defense->examiners()->where('decision', 'pending')->count())->toBe(3);
     $word = $this->get(route('sidang.paper.print', [$defense, 'lembar' => 'berita-acara']))
         ->assertDownload('berita-acara-'.$defense->id.'.docx')->streamedContent();
@@ -299,6 +302,7 @@ it('prints the scheduled identity, records actual panel totals, and exports only
     app(ThesisProjectAdminService::class)->completeSidang(
         $defense->project, $admin->id, 'pass_with_revision', 'Keputusan resmi.', 'Perbaiki daftar pustaka.', '2026-11-12',
     );
+    expect($defense->fresh()->sidang_paper['grade'])->toBe('A');
     $word = $this->get(route('sidang.paper.print', [$defense, 'lembar' => 'berita-acara']))->streamedContent();
     expect(sidangReportSheet($word, 'word/document.xml'))->toContain('>LULUS<')->not->toContain('TIDAK LULUS');
     $sheet = sidangReportSheet($this->post(route('sidang.report'), $params)->assertDownload('rekap-nilai-sidang.xlsx')->streamedContent());
@@ -315,23 +319,213 @@ it('prints the scheduled identity, records actual panel totals, and exports only
     expect(sidangReportSheet($this->post(route('sidang.report'), $params)->streamedContent()))->not->toContain($student->name);
 });
 
-it('rejects a paper score conflicting with a digital score and rolls back any partial changes', function () {
+it('corrects a digital score from paper while preserving the decision and revision notes', function () {
     [$defense, , , $scores] = sidangPaperFixture();
     $admin = User::factory()->asSuperAdmin()->create();
     $examiners = $defense->examiners()->orderBy('order_no')->get();
     $examiners[1]->update(['score' => 68, 'decision' => 'pass']);
 
+    $examiners[1]->update(['revision_notes' => 'Pertahankan catatan lama.']);
     $this->actingAs($admin)->post(route('sidang.paper.store', $defense), ['sidang_sk' => '001/UJI', 'scores' => $scores])
-        ->assertSessionHasErrors('paper');
-    expect($examiners[0]->fresh()->score)->toBeNull()
-        ->and($examiners[1]->fresh()->score)->toEqual(68)
-        ->and($defense->fresh()->sidang_sk)->toBeNull()
-        ->and($defense->fresh()->status)->toBe('scheduled');
+        ->assertSessionHasNoErrors();
+    expect($examiners[1]->fresh()->score)->toEqual(70)
+        ->and($examiners[1]->fresh()->decision)->toBe('pass')
+        ->and($examiners[1]->fresh()->revision_notes)->toBe('Pertahankan catatan lama.')
+        ->and($defense->fresh()->status)->toBe('awaiting_finalization');
 
     $scores['examiner_2']['value'] = 68;
     $scores['supervisor']['value'] = 0;
     $this->post(route('sidang.paper.store', $defense), ['scores' => $scores])->assertSessionHasNoErrors();
-    expect($defense->fresh()->sidang_paper['value'])->toEqual(47.4);
+    expect(app(SidangScoreService::class)->summary($defense->fresh())['value'])->toEqual(47.4);
+});
+
+it('keeps one score through lecturer input, paper matching, admin correction and lecturer correction', function (): void {
+    [$defense, , , $scores] = sidangPaperFixture();
+    $admin = User::factory()->asSuperAdmin()->create();
+    $member = $defense->examiners()->find($scores['examiner_1']['panel_id']);
+    app(ThesisDefenseExaminerDecisionService::class)->submit($member->lecturer, $defense, [
+        'decision' => 'pass_with_revision', 'score' => 90, 'revision_notes' => 'Perbaiki tabel.',
+        'revision_items' => [['description' => 'Rujukan tabel', 'location' => 'Bab 4']],
+    ]);
+    $decisionTime = $member->fresh()->decided_at->toIso8601String();
+    $this->actingAs($admin)->post(route('sidang.paper.store', $defense), ['scores' => $scores])->assertSessionHasNoErrors();
+    expect($member->fresh()->score_source)->toBe('lecturer')
+        ->and($member->fresh()->paper_verified_by)->toBe($admin->id)
+        ->and($member->fresh()->score_recorded_by)->toBe($member->lecturer_user_id);
+
+    $scores['examiner_1']['value'] = 87.25;
+    $this->post(route('sidang.paper.store', $defense), ['scores' => $scores])->assertSessionHasNoErrors();
+    expect($member->fresh()->score)->toEqual(87.25)->and($member->fresh()->score_source)->toBe('paper');
+    $this->actingAs($member->lecturer)->patch(route('dosen.seminar-proposal.score', $defense), [
+        'score' => 88.5, 'expected_score' => 87.25,
+    ])->assertSessionHasNoErrors();
+    expect($member->fresh()->score)->toEqual(88.5)
+        ->and($member->fresh()->paper_verified_at)->toBeNull()
+        ->and($member->fresh()->paper_verified_by)->toBeNull()
+        ->and($member->fresh()->decision)->toBe('pass_with_revision')
+        ->and($member->fresh()->revision_notes)->toBe('Perbaiki tabel.')
+        ->and($member->fresh()->revision_items[0]['description'])->toBe('Rujukan tabel')
+        ->and($member->fresh()->decided_at->toIso8601String())->toBe($decisionTime)
+        ->and($defense->fresh()->status)->toBe('awaiting_finalization')
+        ->and(app(SidangScoreService::class)->summary($defense->fresh())['value'])->toEqual(79.55);
+    $this->assertDatabaseHas('thesis_defense_score_changes', [
+        'examiner_id' => $member->id, 'actor_user_id' => $member->lecturer_user_id,
+        'source' => 'lecturer', 'old_score' => 87.25, 'new_score' => 88.5,
+    ]);
+});
+
+it('rejects stale paper input atomically and keeps the newer lecturer score', function (): void {
+    [$defense, , , $scores] = sidangPaperFixture();
+    $admin = User::factory()->asSuperAdmin()->create();
+    foreach ($scores as &$entry) {
+        $entry['expected_value'] = null;
+    }
+    unset($entry);
+    $member = $defense->examiners()->find($scores['examiner_2']['panel_id']);
+    app(SidangScoreService::class)->correct($member->lecturer, $defense, ['score' => 68, 'expected_score' => null]);
+    $this->actingAs($admin)->post(route('sidang.paper.store', $defense), ['scores' => $scores, 'sidang_sk' => 'STALE'])
+        ->assertSessionHasErrors('scores.examiner_2.value');
+    expect($defense->fresh()->sidang_sk)->toBeNull()
+        ->and($defense->fresh()->sidang_paper)->toBeNull()
+        ->and($defense->examiners()->find($scores['examiner_1']['panel_id'])->score)->toBeNull()
+        ->and($member->fresh()->score)->toEqual(68);
+    $this->assertDatabaseCount('thesis_defense_score_changes', 1);
+    expect($defense->examiners()->whereNotNull('paper_verified_at')->count())->toBe(0);
+});
+
+it('allows an outstanding lecturer decision after paper input without moving the defense back to scheduled', function (): void {
+    [$defense, , , $scores] = sidangPaperFixture();
+    app(SidangPaperService::class)->record($defense, User::factory()->asSuperAdmin()->create(), ['scores' => $scores]);
+    $member = $defense->examiners()->first();
+    app(ThesisDefenseExaminerDecisionService::class)->submit($member->lecturer, $defense, [
+        'decision' => 'pass', 'score' => $member->score, 'expected_score' => $member->score,
+    ]);
+    expect($defense->fresh()->status)->toBe('awaiting_finalization');
+});
+
+it('rejects a panel member from another attempt without changing scores or audit rows', function (): void {
+    [$defense, , $program, $scores] = sidangPaperFixture();
+    [$other, , , $otherScores] = sidangPaperFixture($program);
+    $scores['examiner_2']['panel_id'] = $otherScores['examiner_2']['panel_id'];
+    $this->actingAs(User::factory()->asSuperAdmin()->create())->post(route('sidang.paper.store', $defense), ['scores' => $scores])
+        ->assertSessionHasErrors('paper');
+    expect($defense->examiners()->whereNotNull('score')->count())->toBe(0)
+        ->and($other->examiners()->whereNotNull('score')->count())->toBe(0);
+    $this->assertDatabaseCount('thesis_defense_score_changes', 0);
+});
+
+it('locks every score entry point after finalization even when passed a stale scheduled model', function (): void {
+    [$defense, , , $scores] = sidangPaperFixture();
+    $admin = User::factory()->asSuperAdmin()->create();
+    $stale = $defense->fresh();
+    app(SidangPaperService::class)->record($defense, $admin, ['scores' => $scores]);
+    app(ThesisProjectAdminService::class)->completeSidang($defense->project, $admin->id, 'pass', 'Lulus.');
+    $member = $defense->examiners()->first();
+    expect(fn () => app(SidangScoreService::class)->correct($member->lecturer, $stale, ['score' => 10, 'expected_score' => 90]))->toThrow(ValidationException::class)
+        ->and(fn () => app(SidangPaperService::class)->record($stale, $admin, ['scores' => $scores]))->toThrow(ValidationException::class)
+        ->and(fn () => app(ThesisDefenseExaminerDecisionService::class)->submit($member->lecturer, $stale, ['decision' => 'pass', 'score' => 10]))->toThrow(RuntimeException::class);
+    expect($member->fresh()->score)->toEqual(90);
+});
+
+it('snapshots a complete digital panel at finalization and exports it without paper input', function (): void {
+    [$defense, $student, $program, $scores] = sidangPaperFixture();
+    $admin = User::factory()->asSuperAdmin()->create();
+    foreach ($scores as $entry) {
+        $member = $defense->examiners()->find($entry['panel_id']);
+        app(ThesisDefenseExaminerDecisionService::class)->submit($member->lecturer, $defense, ['decision' => 'pass', 'score' => $entry['value']]);
+    }
+    expect($defense->fresh()->sidang_paper)->toBeNull();
+    app(ThesisProjectAdminService::class)->completeSidang($defense->project, $admin->id, 'pass', 'Hasil resmi.');
+    $program->update(['sidang_settings' => ['a' => 1, 'examiner_1' => 100, 'examiner_2' => 0, 'supervisor' => 0]]);
+    expect(app(SidangScoreService::class)->summary($defense->fresh()))->toMatchArray(['value' => 80.0, 'grade' => 'B+']);
+    expect($defense->fresh()->sidang_paper)->not->toHaveKey('scores');
+    $sheet = sidangReportSheet($this->actingAs($admin)->post(route('sidang.report'))->assertOk()->streamedContent());
+    expect($sheet)->toContain($student->name, '<f>(L12*30%+L13*30%+L14*40%)</f>');
+});
+
+it('rejects score changes by nonmembers and invalid numeric inputs', function (mixed $score): void {
+    [$defense] = sidangPaperFixture();
+    $member = $defense->examiners()->first();
+    $this->actingAs(User::factory()->asDosen()->create())->patch(route('dosen.seminar-proposal.score', $defense), ['score' => 80, 'expected_score' => null])->assertForbidden();
+    $this->actingAs($member->lecturer)->patch(route('dosen.seminar-proposal.score', $defense), ['score' => $score, 'expected_score' => null])->assertSessionHasErrors('score');
+    expect($member->fresh()->score)->toBeNull();
+})->with([-1, 100.01, 80.123, 'delapan puluh', null]);
+
+it('preserves old final snapshots and backfills only missing or provable paper metadata', function (): void {
+    [$defense, , , $scores] = sidangPaperFixture();
+    $admin = User::factory()->asSuperAdmin()->create();
+    $paper = ['recorded_by' => $admin->id, 'recorded_at' => '2026-11-04T13:00:00+08:00',
+        'scores' => $scores, 'value' => 80, 'grade' => 'B+', 'settings' => SidangSettings::DEFAULTS];
+    $member = $defense->examiners()->find($scores['examiner_2']['panel_id']);
+    $member->update(['score' => 68, 'decision' => 'pass']);
+    $defense->forceFill(['status' => 'completed', 'sidang_paper' => $paper])->save();
+    $migration = require database_path('migrations/2026_11_07_000002_restore_missing_sidang_panel_scores.php');
+    $migration->up();
+    $migration->up();
+    expect($defense->fresh()->sidang_paper)->toBe($paper)
+        ->and($defense->examiners()->find($scores['examiner_1']['panel_id'])->score)->toEqual(90)
+        ->and($member->fresh()->score)->toEqual(68)
+        ->and($member->fresh()->decision)->toBe('pass')
+        ->and($member->fresh()->paper_verified_at)->toBeNull()
+        ->and(app(SidangScoreService::class)->summary($defense->fresh())['value'])->toEqual(80);
+    $expected = json_encode(['defense_id' => $defense->id, 'panel_id' => $member->id, 'problem' => 'different_panel_score']);
+    $this->artisan('sidang:audit-scores')->expectsOutput($expected)->assertSuccessful();
+});
+
+it('reports legacy panels it cannot map and preserves their scores', function (): void {
+    [$defense, , , $scores] = sidangPaperFixture();
+    $scores['supervisor']['panel_id'] = 999999;
+    $defense->forceFill(['sidang_paper' => ['scores' => $scores]])->save();
+    app(SidangScoreService::class)->importLegacy($defense);
+    expect($defense->examiners()->whereNotNull('score')->count())->toBe(0)
+        ->and(app(SidangScoreService::class)->legacyIssues($defense->fresh())[0]['problem'])->toBe('unmapped_panel');
+});
+
+it('does not restore an old paper match over a newer lecturer correction during a migration retry', function (): void {
+    [$defense, , , $scores] = sidangPaperFixture();
+    $defense->forceFill(['sidang_paper' => ['scores' => $scores, 'recorded_at' => now()->subDay()->toIso8601String()]])->save();
+    $member = $defense->examiners()->find($scores['examiner_1']['panel_id']);
+    app(SidangScoreService::class)->correct($member->lecturer, $defense, ['score' => 90, 'expected_score' => null]);
+    app(SidangScoreService::class)->importLegacy($defense);
+    expect($member->fresh()->score_source)->toBe('lecturer')
+        ->and($member->fresh()->paper_verified_at)->toBeNull();
+});
+
+it('freezes the migration baseline for an old digital result without inventing its finalization date', function (): void {
+    [$defense, , $program, $scores] = sidangPaperFixture();
+    foreach ($scores as $entry) {
+        $defense->examiners()->find($entry['panel_id'])->update(['score' => $entry['value'], 'decision' => 'pass']);
+    }
+    $defense->update(['status' => 'completed', 'result' => 'pass']);
+    $migration = require database_path('migrations/2026_11_07_000002_restore_missing_sidang_panel_scores.php');
+    $migration->up();
+    $program->update(['sidang_settings' => ['examiner_1' => 100, 'examiner_2' => 0, 'supervisor' => 0]]);
+    expect(app(SidangScoreService::class)->summary($defense->fresh())['value'])->toEqual(80)
+        ->and($defense->fresh()->sidang_paper['settings_origin'])->toBe('program_at_migration')
+        ->and($defense->fresh()->sidang_paper['finalized_at'])->toBeNull()
+        ->and($defense->fresh()->sidang_paper)->not->toHaveKey('scores');
+});
+
+it('uses the same corrected score on manager, lecturer, student, Word and Excel views', function (): void {
+    [$defense, $student, , $scores] = sidangPaperFixture();
+    $admin = User::factory()->asSuperAdmin()->create();
+    $scores['examiner_1']['value'] = 88.5;
+    $this->actingAs($admin)->post(route('sidang.paper.store', $defense), ['scores' => $scores])->assertSessionHasNoErrors();
+    $this->get(route('sidang.paper.show', $defense))->assertInertia(fn (Assert $page) => $page
+        ->where('defense.summary.value', 79.55)->where('defense.panel.0.source', 'paper')
+        ->where('defense.panel.0.recordedBy', $admin->name)->where('defense.panel.0.verifiedBy', $admin->name));
+    app(ThesisProjectAdminService::class)->completeSidang($defense->project, $admin->id, 'pass', 'Selesai.');
+    $member = $defense->examiners()->first();
+    $this->actingAs($member->lecturer)->get(route('dosen.seminar-proposal'))->assertInertia(fn (Assert $page) => $page
+        ->where('defenses.0.paperScore', 79.55)->where('defenses.0.myScore', '88.50')
+        ->where('defenses.0.canEditScore', false)->where('defenses.0.myScoreSource', 'paper'));
+    $this->actingAs($student)->get(route('mahasiswa.tugas-akhir'))->assertInertia(fn (Assert $page) => $page
+        ->where('sidangResult.paperScore', 79.55)->where('sidangResult.examiners.0.decisionLabel', 'Nilai dari berkas'));
+    $this->actingAs($admin);
+    $word = $this->get(route('sidang.paper.print', [$defense, 'lembar' => 'rekap-nilai']))->streamedContent();
+    expect(sidangReportSheet($word, 'word/document.xml'))->toContain('79.55', '88.5');
+    $excel = $this->post(route('sidang.report'))->assertOk()->streamedContent();
+    expect(sidangReportSheet($excel))->toContain('79.55', '88.5');
 });
 
 it('continues the reference row pattern past nine defenses and keeps each program on its own sheet', function () {

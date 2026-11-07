@@ -1,4 +1,4 @@
-import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import {
     CheckCircle2,
     Eye,
@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 
+import { updateScore } from '@/actions/App/Http/Controllers/Dosen/SeminarProposalController';
 import { type BimbinganEvent } from '@/components/bimbingan-calendar';
 import { CollapsibleCalendarSection } from '@/components/collapsible-calendar-section';
 import {
@@ -92,6 +93,7 @@ type OtherExaminer = {
     order: number;
     decision: string | null;
     score: number | null;
+    scoreSource: string | null;
 };
 
 type MyRevisionItem = {
@@ -140,6 +142,8 @@ type DefenseItem = {
     myOrder: number;
     myDecision: string | null;
     myScore: number | null;
+    myScoreSource: string | null;
+    canEditScore: boolean;
     myDecisionNotes: string | null;
     myRevisionNotes: string | null;
     myRevisionItems: MyRevisionItem[];
@@ -212,10 +216,14 @@ function DecisionBadge({
     decision,
     defenseType,
     own = false,
+    score = null,
+    scoreSource = null,
 }: {
     decision: string | null;
     defenseType: string;
     own?: boolean;
+    score?: number | null;
+    scoreSource?: string | null;
 }) {
     const status = decision ?? 'pending';
     const Icon =
@@ -228,9 +236,13 @@ function DecisionBadge({
     return (
         <StatusBadge domain="result" status={status}>
             <Icon aria-hidden="true" className="size-3.5" />
-            {own && status === 'pending'
-                ? 'Belum Diputus'
-                : getDecisionLabel(decision, defenseType)}
+            {status === 'pending' && score !== null
+                ? scoreSource === 'paper'
+                    ? 'Nilai dari berkas'
+                    : 'Nilai tercatat'
+                : own && status === 'pending'
+                  ? 'Belum Diputus'
+                  : getDecisionLabel(decision, defenseType)}
         </StatusBadge>
     );
 }
@@ -245,6 +257,7 @@ function DecisionForm({
     typeLabel,
     attemptNo,
     canSubmit,
+    initialScore,
     onClose,
 }: {
     defenseId: number;
@@ -255,10 +268,14 @@ function DecisionForm({
     typeLabel: string;
     attemptNo: number;
     canSubmit: boolean;
+    initialScore: number | null;
     onClose: () => void;
 }) {
     const [decision, setDecision] = useState<string>('');
-    const [score, setScore] = useState<string>('');
+    const [score, setScore] = useState<string>(
+        initialScore === null ? '' : String(initialScore),
+    );
+    const [expectedScore] = useState(initialScore);
     const [decisionNotes, setDecisionNotes] = useState<string>('');
     const [revisionNotes, setRevisionNotes] = useState<string>('');
     const [revisionItems, setRevisionItems] = useState<DraftItem[]>([]);
@@ -297,6 +314,9 @@ function DecisionForm({
             {
                 decision,
                 ...(scoreRequired ? { score: parseFloat(score) } : {}),
+                ...(defenseType === 'sidang'
+                    ? { expected_score: expectedScore }
+                    : {}),
                 decision_notes: decisionNotes.trim() || null,
                 revision_notes: showRevisionNotes
                     ? revisionNotes.trim() || null
@@ -623,6 +643,140 @@ function DecisionForm({
 }
 
 // ── Defense Detail Sheet ─────────────────────────────────────────────
+function ScoreCorrection({ item }: { item: DefenseItem }) {
+    const [editing, setEditing] = useState(false);
+    const [confirming, setConfirming] = useState(false);
+    const requestPending = useRef(false);
+    const form = useForm({
+        score: item.myScore === null ? '' : String(item.myScore),
+        expected_score: item.myScore,
+    });
+
+    return (
+        <section className="space-y-3 border-t pt-5">
+            {!editing ? (
+                <Button
+                    variant="outline"
+                    onClick={() => {
+                        form.setData({
+                            score:
+                                item.myScore === null
+                                    ? ''
+                                    : String(item.myScore),
+                            expected_score: item.myScore,
+                        });
+                        form.clearErrors();
+                        setEditing(true);
+                    }}
+                >
+                    Koreksi Nilai Saya
+                </Button>
+            ) : (
+                <>
+                    <div className="grid max-w-xs gap-2">
+                        <Label htmlFor="koreksi-nilai-saya">Nilai saya</Label>
+                        <Input
+                            id="koreksi-nilai-saya"
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            value={form.data.score}
+                            onChange={(event) =>
+                                form.setData('score', event.target.value)
+                            }
+                        />
+                        {form.errors.score && (
+                            <p
+                                role="alert"
+                                className="text-sm text-destructive"
+                            >
+                                {form.errors.score}
+                            </p>
+                        )}
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                        Nilai dapat dikoreksi sebelum finalisasi sidang.
+                        Cocokkan kembali dengan lembar penilaian.
+                    </p>
+                    <div className="flex gap-2">
+                        <Button
+                            variant="outline"
+                            disabled={form.processing}
+                            onClick={() => {
+                                form.reset();
+                                setEditing(false);
+                            }}
+                        >
+                            Batal
+                        </Button>
+                        <Button
+                            disabled={
+                                form.processing ||
+                                form.data.score === '' ||
+                                Number(form.data.score) < 0 ||
+                                Number(form.data.score) > 100
+                            }
+                            onClick={() => setConfirming(true)}
+                        >
+                            Tinjau Koreksi Nilai
+                        </Button>
+                    </div>
+                </>
+            )}
+            <Dialog
+                open={confirming}
+                onOpenChange={(open) => {
+                    if (!form.processing) setConfirming(open);
+                }}
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Konfirmasi koreksi nilai saya</DialogTitle>
+                        <DialogDescription>
+                            {item.studentName} · {item.studentNim} ·{' '}
+                            {item.typeLabel} #{item.attemptNo}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <p className="text-sm tabular-nums">
+                        Nilai sebelumnya {item.myScore} menjadi{' '}
+                        {form.data.score}.
+                    </p>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            disabled={form.processing}
+                            onClick={() => setConfirming(false)}
+                        >
+                            Batal
+                        </Button>
+                        <Button
+                            disabled={form.processing}
+                            onClick={() => {
+                                if (requestPending.current) return;
+                                requestPending.current = true;
+                                form.patch(updateScore(item.defenseId).url, {
+                                    preserveScroll: true,
+                                    onFinish: () => {
+                                        requestPending.current = false;
+                                    },
+                                    onError: () => setConfirming(false),
+                                    onSuccess: () => {
+                                        setConfirming(false);
+                                        setEditing(false);
+                                    },
+                                });
+                            }}
+                        >
+                            Konfirmasi Koreksi Nilai
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </section>
+    );
+}
+
 function DefenseDetailSheet({
     item,
     open,
@@ -644,7 +798,9 @@ function DefenseDetailSheet({
     const returnTo = `/dosen/seminar-proposal?${returnQuery.toString()}`;
 
     const canDecide =
-        item.myDecision === 'pending' && item.defenseStatus === 'scheduled';
+        item.myDecision === 'pending' &&
+        (item.defenseStatus === 'scheduled' ||
+            (item.type === 'sidang' && item.canEditScore));
     const averageScore =
         item.paperScore ??
         calculateAverageAcademicScore([
@@ -846,6 +1002,8 @@ function DefenseDetailSheet({
                                             own
                                             decision={item.myDecision}
                                             defenseType={item.type}
+                                            score={item.myScore}
+                                            scoreSource={item.myScoreSource}
                                         />
                                         {item.myScore !== null && (
                                             <span className="font-medium tabular-nums">
@@ -907,6 +1065,8 @@ function DefenseDetailSheet({
                                         <DecisionBadge
                                             decision={ex.decision}
                                             defenseType={item.type}
+                                            score={ex.score}
+                                            scoreSource={ex.scoreSource}
                                         />
                                         {ex.score !== null && (
                                             <span className="font-medium tabular-nums">
@@ -964,6 +1124,14 @@ function DefenseDetailSheet({
                             />
                         </section>
 
+                        {item.canEditScore &&
+                            item.myScore !== null &&
+                            !showDecisionForm && (
+                                <ScoreCorrection
+                                    key={item.defenseId}
+                                    item={item}
+                                />
+                            )}
                         {(canDecide || showDecisionForm) &&
                             (!showDecisionForm ? (
                                 <Button
@@ -983,6 +1151,7 @@ function DefenseDetailSheet({
                                     typeLabel={item.typeLabel}
                                     attemptNo={item.attemptNo}
                                     canSubmit={canDecide}
+                                    initialScore={item.myScore}
                                     onClose={handleClose}
                                 />
                             ))}
@@ -1361,6 +1530,10 @@ export default function DosenSeminarProposalPage() {
                                                             item.myDecision
                                                         }
                                                         defenseType={item.type}
+                                                        score={item.myScore}
+                                                        scoreSource={
+                                                            item.myScoreSource
+                                                        }
                                                     />
                                                     {item.myScore !== null && (
                                                         <span className="font-medium tabular-nums">

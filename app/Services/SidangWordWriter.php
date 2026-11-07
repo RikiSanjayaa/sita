@@ -75,11 +75,13 @@ final class SidangWordWriter
         $program = $project->programStudi;
         $terms = AcademicTerminology::forProject($project);
         $currentSettings = SidangSettings::forProgram($program);
-        $settings = $defense->sidang_paper['settings'] ?? $currentSettings;
+        $summary = app(SidangScoreService::class)->summary($defense);
+        $settings = $summary['settings'] ?? $currentSettings;
         $faculty = $program?->faculty;
         $programName = trim($terms['degreeLevel'].' '.$program?->name);
         $panel = $defense->examiners->sortBy('order_no');
         $examiners = $panel->where('role', 'examiner')->values();
+        $panelIds = app(SidangScoreService::class)->panelIds($defense);
         $head = $program?->kaprodiAssignments->firstWhere('is_primary', true)?->user;
         $nim = (string) $project->student?->mahasiswaProfile?->nim;
         $complete = $defense->status === 'completed';
@@ -96,19 +98,19 @@ final class SidangWordWriter
             'placeDate' => $settings['city'].', '.WitaDateTime::translated($defense->scheduled_for, 'd F Y', withLabel: false),
             'supervisor1' => (string) $panel->firstWhere('role', 'primary_supervisor')?->lecturer?->name,
             'supervisor2' => (string) $panel->firstWhere('role', 'secondary_supervisor')?->lecturer?->name,
-            'examiner1' => (string) $examiners->get(0)?->lecturer?->name,
-            'examiner2' => (string) $examiners->get(1)?->lecturer?->name,
+            'examiner1' => (string) ($panelIds === null ? $examiners->get(0) : $panel->find($panelIds['examiner_1']))?->lecturer?->name,
+            'examiner2' => (string) ($panelIds === null ? $examiners->get(1) : $panel->find($panelIds['examiner_2']))?->lecturer?->name,
             'moderator' => (string) $defense->moderator?->name,
             'head' => (string) $head?->name, 'headNik' => (string) $head?->dosenProfile?->nik,
             'pass' => ! $complete || in_array($defense->result, ['pass', 'pass_with_revision'], true) ? 'LULUS' : '',
             'fail' => ! $complete || $defense->result === 'fail' ? 'TIDAK LULUS' : '',
-            'total' => $complete ? (string) ($defense->sidang_paper['value'] ?? '') : '',
+            'total' => $complete ? (string) ($summary['value'] ?? '') : '',
         ];
         for ($index = 0; $index < 10; $index++) {
             $fields['nim'.($index + 1)] = $index === 9 ? substr($nim, $index) : ($nim[$index] ?? '');
         }
         foreach (['examiner_1' => 'examiner1', 'examiner_2' => 'examiner2', 'supervisor' => 'supervisor'] as $role => $key) {
-            $value = $complete ? ($defense->sidang_paper['scores'][$role]['value'] ?? null) : null;
+            $value = $complete ? ($summary['scores'][$role]['value'] ?? null) : null;
             $fields[$key.'Weight'] = $settings[$role].' %';
             $fields[$key.'Score'] = (string) $value;
             $fields[$key.'Weighted'] = $value === null ? '' : (string) ($value * $settings[$role] / 100);

@@ -6,6 +6,7 @@ use App\Models\SidangReportPeriod;
 use App\Models\ThesisDefense;
 use App\Models\User;
 use App\Services\SidangReportWriter;
+use App\Services\SidangScoreService;
 use App\Support\WitaDateTime;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
@@ -32,7 +33,6 @@ class SidangReportController extends Controller
             ->where('type', 'sidang')
             ->where('status', 'completed')
             ->whereIn('result', ['pass', 'pass_with_revision'])
-            ->whereNotNull('sidang_paper')
             ->whereNotExists(DB::table('thesis_defenses as later')
                 ->whereColumn('later.project_id', 'thesis_defenses.project_id')
                 ->whereColumn('later.attempt_no', '>', 'thesis_defenses.attempt_no')
@@ -79,7 +79,8 @@ class SidangReportController extends Controller
         ])->orderBy('thesis_defenses.id');
 
         return response()->streamDownload(
-            fn () => $writer->write($query->lazyById(200, 'thesis_defenses.id', 'id'), $filters['period'] ?? ''),
+            fn () => $writer->write($query->lazyById(200, 'thesis_defenses.id', 'id')
+                ->filter(fn (ThesisDefense $defense): bool => app(SidangScoreService::class)->summary($defense) !== null), $filters['period'] ?? ''),
             'rekap-nilai-sidang.xlsx',
             ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'Cache-Control' => 'private, no-store'],
         );

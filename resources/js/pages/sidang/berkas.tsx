@@ -1,10 +1,19 @@
 import { Head, useForm } from '@inertiajs/react';
 import { ArrowLeft, Printer } from 'lucide-react';
+import { useRef, useState } from 'react';
 
 import { PageHeader } from '@/components/patterns/page-header';
 import { SectionCard } from '@/components/patterns/section-card';
 import { StatusBadge } from '@/components/patterns/status-badge';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import KaprodiLayout from '@/layouts/kaprodi-layout';
@@ -22,8 +31,16 @@ type Panel = {
     name: string;
     supervisor: boolean;
     score: string | null;
+    recordedBy: string | null;
+    recordedAt: string | null;
+    source: string | null;
+    verifiedBy: string | null;
+    verifiedAt: string | null;
 };
-type Scores = Record<ScoreRole, { panel_id: string; value: string }>;
+type Scores = Record<
+    ScoreRole,
+    { panel_id: string; value: string; expected_value: string | null }
+>;
 
 interface Props {
     defense: {
@@ -39,6 +56,7 @@ interface Props {
         location: string | null;
         sk: string | null;
         panel: Panel[];
+        panelIds: Record<ScoreRole, number> | null;
         summary: { value: number; grade: string } | null;
     };
     weights: Record<ScoreRole, number>;
@@ -56,7 +74,25 @@ function initialScore(member?: Panel) {
     return {
         panel_id: member ? String(member.id) : '',
         value: member?.score ?? '',
+        expected_value: member?.score ?? null,
     };
+}
+
+function ScoreHistory({ member }: { member: Panel }) {
+    return (
+        <div className="space-y-1 text-sm text-muted-foreground">
+            <p>
+                {member.recordedBy
+                    ? `${member.source === 'paper' ? 'Dari berkas' : 'Dari portal Dosen'} oleh ${member.recordedBy}${member.recordedAt ? ` · ${member.recordedAt}` : ''}`
+                    : 'Riwayat penginput nilai lama belum tercatat.'}
+            </p>
+            <p>
+                {member.verifiedAt
+                    ? `Cocok dengan berkas${member.verifiedBy ? ` · ${member.verifiedBy}` : ''} · ${member.verifiedAt}`
+                    : 'Belum dicocokkan dengan berkas.'}
+            </p>
+        </div>
+    );
 }
 
 export default function BerkasSidang({
@@ -70,13 +106,26 @@ export default function BerkasSidang({
 }: Props) {
     const examiners = defense.panel.filter((member) => !member.supervisor);
     const supervisors = defense.panel.filter((member) => member.supervisor);
+    const [confirming, setConfirming] = useState(false);
+    const scoreRequestPending = useRef(false);
+    const selectedMember = (role: ScoreRole, fallback?: Panel) =>
+        defense.panel.find(
+            (member) => member.id === defense.panelIds?.[role],
+        ) ?? fallback;
     const form = useForm({
         sidang_sk: defense.sk ?? '',
         scores: {
-            examiner_1: initialScore(examiners[0]),
-            examiner_2: initialScore(examiners[1]),
+            examiner_1: initialScore(
+                selectedMember('examiner_1', examiners[0]),
+            ),
+            examiner_2: initialScore(
+                selectedMember('examiner_2', examiners[1]),
+            ),
             supervisor: initialScore(
-                supervisors.length === 1 ? supervisors[0] : undefined,
+                selectedMember(
+                    'supervisor',
+                    supervisors.length === 1 ? supervisors[0] : undefined,
+                ),
             ),
         } satisfies Scores,
     });
@@ -239,8 +288,9 @@ export default function BerkasSidang({
                         </span>
                     }
                     description="Masukkan nilai total pada lembar masing-masing dosen. Nilai yang sudah tercatat ditampilkan otomatis."
+                    contentClassName="flex flex-col gap-4"
                 >
-                    {defense.summary ? (
+                    {defense.summary && (
                         <div className="space-y-2">
                             <p className="font-semibold tabular-nums">
                                 Nilai akhir {number(defense.summary.value)} ·
@@ -248,9 +298,9 @@ export default function BerkasSidang({
                             </p>
                             {defense.status === 'awaiting_finalization' && (
                                 <p className="text-sm text-muted-foreground">
-                                    Nilai sudah disimpan. Petugas berwenang
-                                    dapat menetapkan hasil di detail Tugas Akhir
-                                    pada panel admin.
+                                    Nilai dapat dikoreksi sampai finalisasi.
+                                    Petugas berwenang dapat menetapkan hasil di
+                                    detail Tugas Akhir pada panel admin.
                                 </p>
                             )}
                             {finalizeUrl && (
@@ -261,7 +311,27 @@ export default function BerkasSidang({
                                 </Button>
                             )}
                         </div>
-                    ) : defense.editable && canEnterScores ? (
+                    )}
+                    {!defense.editable && defense.summary && (
+                        <ul className="divide-y">
+                            {roleEntries.map(([role, label]) => {
+                                const member = defense.panel.find(
+                                    (person) =>
+                                        person.id === defense.panelIds?.[role],
+                                );
+                                return member ? (
+                                    <li key={role} className="space-y-2 py-3">
+                                        <p className="text-sm font-medium">
+                                            {label} · {member.name} ·{' '}
+                                            {member.score}
+                                        </p>
+                                        <ScoreHistory member={member} />
+                                    </li>
+                                ) : null;
+                            })}
+                        </ul>
+                    )}
+                    {defense.editable && canEnterScores ? (
                         <div className="space-y-4">
                             {roleEntries.map(([role, label]) => {
                                 const entry = form.data.scores[role];
@@ -308,14 +378,33 @@ export default function BerkasSidang({
                                                 {(role === 'supervisor'
                                                     ? supervisors
                                                     : examiners
-                                                ).map((person) => (
-                                                    <option
-                                                        key={person.id}
-                                                        value={person.id}
-                                                    >
-                                                        {person.name}
-                                                    </option>
-                                                ))}
+                                                )
+                                                    .filter(
+                                                        (person) =>
+                                                            role ===
+                                                                'supervisor' ||
+                                                            !roleEntries.some(
+                                                                ([other]) =>
+                                                                    other !==
+                                                                        role &&
+                                                                    form.data
+                                                                        .scores[
+                                                                        other
+                                                                    ]
+                                                                        .panel_id ===
+                                                                        String(
+                                                                            person.id,
+                                                                        ),
+                                                            ),
+                                                    )
+                                                    .map((person) => (
+                                                        <option
+                                                            key={person.id}
+                                                            value={person.id}
+                                                        >
+                                                            {person.name}
+                                                        </option>
+                                                    ))}
                                             </select>
                                         </div>
                                         <div className="space-y-2">
@@ -331,7 +420,6 @@ export default function BerkasSidang({
                                                 max="100"
                                                 step="0.01"
                                                 value={entry.value}
-                                                readOnly={member?.score != null}
                                                 disabled={!member}
                                                 onChange={(event) =>
                                                     form.setData('scores', {
@@ -345,6 +433,11 @@ export default function BerkasSidang({
                                                 }
                                             />
                                         </div>
+                                        {member?.score !== null && member && (
+                                            <div className="sm:col-span-2">
+                                                <ScoreHistory member={member} />
+                                            </div>
+                                        )}
                                     </div>
                                 );
                             })}
@@ -356,25 +449,111 @@ export default function BerkasSidang({
                             <Button
                                 type="button"
                                 disabled={!canPreview || form.processing}
-                                onClick={() => {
-                                    form.transform((data) => data);
-                                    form.post(storeUrl, {
-                                        preserveScroll: true,
-                                    });
-                                }}
+                                onClick={() => setConfirming(true)}
                             >
-                                Simpan untuk Finalisasi
+                                {defense.summary
+                                    ? 'Simpan Koreksi / Pencocokan'
+                                    : 'Simpan untuk Finalisasi'}
                             </Button>
                         </div>
                     ) : (
                         <p className="text-sm text-muted-foreground">
                             {defense.editable
                                 ? 'Input dari berkas membutuhkan dua penguji dan minimal satu pembimbing pada panel. Periksa susunan panel pada jadwal sidang.'
-                                : 'Belum ada rekap nilai dari berkas untuk sidang ini.'}
+                                : defense.summary
+                                  ? 'Nilai sudah difinalisasi.'
+                                  : 'Belum ada rekap nilai dari berkas untuk sidang ini.'}
                         </p>
                     )}
                 </SectionCard>
             </form>
+            <Dialog
+                open={confirming}
+                onOpenChange={(open) => {
+                    if (!form.processing) setConfirming(open);
+                }}
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Konfirmasi nilai dari berkas</DialogTitle>
+                        <DialogDescription>
+                            {defense.name} · {defense.nim} · {defense.label}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <ul className="divide-y text-sm">
+                        {roleEntries.map(([role, label]) => (
+                            <li
+                                key={role}
+                                className="flex justify-between gap-4 py-2"
+                            >
+                                <span>
+                                    {label} ·{' '}
+                                    {
+                                        defense.panel.find(
+                                            (member) =>
+                                                String(member.id) ===
+                                                form.data.scores[role].panel_id,
+                                        )?.name
+                                    }
+                                </span>
+                                <span className="font-medium tabular-nums">
+                                    {form.data.scores[role].value}
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                    <p className="text-sm">
+                        Nilai disimpan dan dicocokkan dengan berkas. Hasil akhir
+                        ditetapkan melalui finalisasi sidang.
+                    </p>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            disabled={form.processing}
+                            onClick={() => setConfirming(false)}
+                        >
+                            Batal
+                        </Button>
+                        <Button
+                            disabled={form.processing}
+                            onClick={() => {
+                                if (scoreRequestPending.current) return;
+                                scoreRequestPending.current = true;
+                                form.transform((data) => data);
+                                form.post(storeUrl, {
+                                    preserveScroll: true,
+                                    onFinish: () => {
+                                        scoreRequestPending.current = false;
+                                    },
+                                    onError: () => setConfirming(false),
+                                    onSuccess: () => {
+                                        setConfirming(false);
+                                        form.setData(
+                                            'scores',
+                                            Object.fromEntries(
+                                                roleEntries.map(([role]) => [
+                                                    role,
+                                                    {
+                                                        ...form.data.scores[
+                                                            role
+                                                        ],
+                                                        expected_value:
+                                                            form.data.scores[
+                                                                role
+                                                            ].value,
+                                                    },
+                                                ]),
+                                            ) as Scores,
+                                        );
+                                    },
+                                });
+                            }}
+                        >
+                            Konfirmasi Simpan Nilai
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </main>
     );
 
