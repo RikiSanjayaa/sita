@@ -41,6 +41,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/defenses/{defense}/cetak-berkas', SidangPrintController::class)->name('sidang.paper.preview');
     Route::get('/defenses/{defense}/berkas-sidang', [SidangPaperController::class, 'show'])->name('sidang.paper.show');
     Route::post('/defenses/{defense}/berkas-sidang', [SidangPaperController::class, 'store'])->name('sidang.paper.store');
+    Route::patch('/defenses/{defense}/berkas-sidang/nomor-sk', [SidangPaperController::class, 'correctSk'])->name('sidang.paper.correct-sk');
     Route::match(['get', 'post'], '/rekap-nilai-sidang', SidangReportController::class)->name('sidang.report');
     Route::redirect('edit-profile', '/settings/profile')->name('edit-profile');
     Route::redirect('settings', '/settings/profile');

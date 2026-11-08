@@ -169,6 +169,26 @@ it('hides scheduling, supervisor and quota items from a kaprodi without that cap
     expect(dashboardItems($kaprodi->fresh()))->toBe([]);
 });
 
+it('uses the same eligible finalization rows for the dashboard count, preview and destination', function (): void {
+    $prodi = ProgramStudi::factory()->create();
+    $kaprodi = dashboardKaprodi($prodi);
+    $first = dashboardExam(dashboardStudent($prodi, 'Finalisasi Satu', 'sempro'), '2026-10-23 09:00', 'awaiting_finalization');
+    $second = dashboardExam(dashboardStudent($prodi, 'Finalisasi Dua', 'sempro'), '2026-10-24 09:00', 'awaiting_finalization');
+    $archived = dashboardExam(dashboardStudent($prodi, 'Finalisasi Arsip', 'sempro', ['archived_at' => now()]), '2026-10-25 09:00', 'awaiting_finalization');
+    $completed = dashboardExam(dashboardStudent($prodi, 'Finalisasi Riwayat', 'completed', ['state' => 'completed']), '2026-10-26 09:00', 'awaiting_finalization');
+    dashboardExam(dashboardStudent(ProgramStudi::factory()->create(), 'Finalisasi Prodi Lain', 'sempro'), '2026-10-27 09:00', 'awaiting_finalization');
+
+    $item = dashboardItems($kaprodi)['awaiting-finalization'];
+    expect($item['value'])->toBe(2)
+        ->and($item['names'])->toHaveCount(1)
+        ->and(['Finalisasi Satu', 'Finalisasi Dua'])->toContain($item['names'][0]);
+
+    $page = $this->actingAs($kaprodi)->get($item['href'])->assertOk()->viewData('page');
+    $exams = collect(data_get($page, 'props.exams'));
+    expect($exams->pluck('id')->all())->toEqualCanonicalizing([$first->id, $second->id, $archived->id, $completed->id])
+        ->and($exams->where('inFinalizationQueue', true)->pluck('id')->all())->toEqualCanonicalizing([$first->id, $second->id]);
+});
+
 it('lists students without recent activity as inactive', function (): void {
     $prodi = ProgramStudi::factory()->create();
     $kaprodi = dashboardKaprodi($prodi);

@@ -18,6 +18,7 @@ use Filament\Actions\ActionGroup;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Concerns\InteractsWithRecord;
@@ -147,8 +148,51 @@ class ManageSidangPaper extends Page
             Section::make('Nomor SK')->schema([
                 TextInput::make('sidang_sk')->label('Nomor SK')->maxLength(150)
                     ->helperText('Gunakan nomor SK pembimbing dan penguji dari Adum.')->disabled(! $this->editable()),
-            ])->footerActions([$this->saveSkAction()]),
+                RepeatableEntry::make('skHistory')->label('Riwayat koreksi No SK')
+                    ->visible(fn (): bool => $this->defense->status === 'completed')
+                    ->state(fn (): array => app(SidangPaperService::class)->skHistory($this->defense))
+                    ->placeholder('Belum ada koreksi No SK.')
+                    ->columns(2)
+                    ->schema([
+                        TextEntry::make('oldNumber')->label('Nomor lama')->placeholder('Belum diisi')->wrap(),
+                        TextEntry::make('newNumber')->label('Nomor baru')->wrap(),
+                        TextEntry::make('actor')->label('Dikoreksi oleh'),
+                        TextEntry::make('occurredAt')->label('Waktu'),
+                    ]),
+            ])->footerActions([$this->saveSkAction(), $this->correctSkAction()]),
         ]);
+    }
+
+    public function correctSkAction(): Action
+    {
+        return Action::make('correctSk')->label('Koreksi No SK')->color('gray')
+            ->visible(fn (): bool => app(SidangPaperService::class)->canCorrectSk($this->defense))
+            ->modalHeading('Koreksi No SK')
+            ->modalDescription(fn (): string => $this->getTitle().'. Nilai dan hasil final tetap terkunci.')
+            ->modalSubmitActionLabel('Simpan koreksi')->modalCancelActionLabel('Batal')
+            ->fillForm(fn (): array => [
+                'expected_version' => app(SidangPaperService::class)->skVersion($this->defense),
+            ])
+            ->schema([
+                TextEntry::make('current_sk')->label('No SK saat ini')->state(fn (): ?string => $this->defense->sidang_sk)
+                    ->placeholder('Belum diisi')->wrap(),
+                Hidden::make('expected_version')->required()->rules(['string', 'size:64']),
+                TextInput::make('sidang_sk')->label('No SK baru')->trim()->required()->maxLength(150),
+            ])
+            ->action(function (array $data): void {
+                try {
+                    $changed = app(SidangPaperService::class)->correctSk(
+                        $this->defense, Auth::user(), $data['sidang_sk'], $data['expected_version'],
+                    );
+                } catch (ValidationException $exception) {
+                    throw ValidationException::withMessages([
+                        $this->getMountedActionSchema()->getStatePath().'.sidang_sk' => $exception->errors()['sidang_sk'],
+                    ]);
+                }
+                unset($this->defense);
+                $this->skForm->fill(['sidang_sk' => $this->defense->sidang_sk]);
+                Notification::make()->title($changed ? 'Koreksi No SK disimpan.' : 'No SK tetap sama.')->success()->send();
+            });
     }
 
     public function scoreForm(Schema $schema): Schema

@@ -78,10 +78,12 @@ it('blocks a mixed report with an identified legacy panel instead of silently dr
     app(SidangPaperService::class)->record($supported, $superAdmin, ['scores' => $scores]);
     app(ThesisProjectAdminService::class)->completeSidang($supported->project, $superAdmin->id, 'pass', 'Final.');
 
+    $tempFiles = glob(sys_get_temp_dir().'/sita-office-*');
     $response = $this->actingAs($actor)->postJson(route('sidang.report'))->assertUnprocessable();
     expect($response->json('message'))->toContain('1 sidang', 'Mahasiswa Panel Lama', $student->mahasiswaProfile->nim, 'profil perhitungan', 'bobot perlu dikonfirmasi')
         ->and($response->headers->has('content-disposition'))->toBeFalse()
-        ->and($legacy->fresh()->examiners->pluck('score')->unique()->all())->toBe(['80.00']);
+        ->and($legacy->fresh()->examiners->pluck('score')->unique()->all())->toBe(['80.00'])
+        ->and(array_diff(glob(sys_get_temp_dir().'/sita-office-*'), $tempFiles))->toBe([]);
     // An explicit selection may still download the supported row, preserving its final score.
     $excel = sidangExcelContent($this->post(route('sidang.report'), ['ids' => (string) $supported->id])->assertOk());
     expect(sidangReportSheet($excel))->toContain($supported->project->student->name)->not->toContain('Mahasiswa Panel Lama');
@@ -555,10 +557,14 @@ function sidangReportSheet(string $content, string $part = 'xl/worksheets/sheet7
 function sidangExcelContent(TestResponse $response): string
 {
     $path = $response->baseResponse->getFile()->getPathname();
+    ob_start();
     try {
-        return file_get_contents($path);
+        $response->baseResponse->sendContent();
+
+        return ob_get_contents();
     } finally {
-        unlink($path);
+        ob_end_clean();
+        expect($path)->not->toBeFile();
     }
 }
 
@@ -842,24 +848,68 @@ it('continues the reference row pattern past nine defenses and keeps each progra
     $extra = $first->fresh();
     $extra->sidang_sk = '002/ADUM';
 
-    $path = app(SidangReportWriter::class)->prepare([...array_fill(0, 9, $first->fresh()), $extra, $second->fresh()], 'Uji');
+    $path = app(SidangReportWriter::class)->prepare([...array_fill(0, 9, $first->fresh()), $extra, ...array_fill(0, 11, $second->fresh())], 'Uji');
     try {
         $content = file_get_contents($path);
     } finally {
         unlink($path);
     }
 
-    $sheet = sidangReportSheet($content);
-    expect($sheet)->toContain('A39:A41', '<f>ROUND(L39*30%+L40*30%+L41*40%,4)</f>', 'A44:B44', 'E12:E38', 'E39:E41', '002/ADUM', '>00001234</t>');
-    $xml = new DOMDocument;
-    expect($xml->loadXML($sheet))->toBeTrue();
-    $rows = $xml->getElementsByTagName('row');
-    $rowNumbers = array_map(fn (DOMElement $row): int => (int) $row->getAttribute('r'), iterator_to_array($rows));
-    expect($rowNumbers)->toBe(array_values(array_unique($rowNumbers)));
-    $merges = $xml->getElementsByTagName('mergeCells')->item(0);
-    expect((int) $merges->getAttribute('count'))->toBe($merges->childElementCount);
-    expect(sidangReportSheet($content, 'xl/workbook.xml'))->toContain('$A$7:$O$52', '$A$7:$O$49');
-    expect(sidangReportSheet($content, 'xl/worksheets/rekap2.xml'))->toContain($student->name, 'A12:A14');
+    $template = file_get_contents(resource_path('templates/sidang/rekap-nilai-sidang.xlsx'));
+    expect(sidangReportSheet($content, 'xl/styles.xml'))->toBe(sidangReportSheet($template, 'xl/styles.xml'));
+    expect(sidangReportSheet($content, 'xl/workbook.xml'))->toContain('$A$7:$O$52', '$A$7:$O$55');
+    expect(sidangReportSheet($content))->toContain('E12:E38', 'E39:E41', '002/ADUM', '>00001234</t>')->not->toContain($student->name);
+    expect(sidangReportSheet($content, 'xl/worksheets/rekap2.xml'))->toContain($student->name)->not->toContain($first->project->student->name);
+
+    foreach (['sheet7' => 39, 'rekap2' => 42] as $sheet => $lastDefenseRow) {
+        $xml = new DOMDocument;
+        expect($xml->loadXML(sidangReportSheet($content, "xl/worksheets/{$sheet}.xml")))->toBeTrue();
+        $xpath = new DOMXPath($xml);
+        $xpath->registerNamespace('m', $xml->documentElement->namespaceURI);
+        $rowNumbers = array_map(fn (DOMElement $row): int => (int) $row->getAttribute('r'), iterator_to_array($xpath->query('//m:sheetData/m:row')));
+        $orderedRows = array_values(array_unique($rowNumbers));
+        sort($orderedRows);
+        $merges = $xml->getElementsByTagName('mergeCells')->item(0);
+        $mergesByRange = array_map(fn (DOMElement $merge): string => $merge->getAttribute('ref'), iterator_to_array($merges->getElementsByTagName('mergeCell')));
+        expect($rowNumbers)->toBe($orderedRows)
+            ->and((int) $merges->getAttribute('count'))->toBe(count(array_unique($mergesByRange)))
+            ->and($mergesByRange)->toContain('A'.$lastDefenseRow.':A'.($lastDefenseRow + 2), 'A'.($lastDefenseRow + 5).':B'.($lastDefenseRow + 5))
+            ->and($xpath->evaluate("string(//m:c[@r='M{$lastDefenseRow}']/m:f)"))->toBe(sprintf('ROUND(L%d*30%%+L%d*30%%+L%d*40%%,4)', $lastDefenseRow, $lastDefenseRow + 1, $lastDefenseRow + 2))
+            ->and($xpath->evaluate("string(//m:c[@r='N{$lastDefenseRow}']/m:f)"))->toBe("ROUND(M{$lastDefenseRow},0)")
+            ->and($xpath->evaluate("string(//m:c[@r='N{$lastDefenseRow}']/m:v)"))->toBe('80')
+            ->and($xpath->evaluate("string(//m:c[@r='M{$lastDefenseRow}']/@s)"))->toBe($xpath->evaluate("string(//m:c[@r='M36']/@s)"))
+            ->and($xpath->evaluate('string(//m:pageSetup/@orientation)'))->toBe('landscape')
+            ->and(sidangReportSheet($content, "xl/worksheets/_rels/{$sheet}.xml.rels"))
+            ->toBe(sidangReportSheet($template, 'xl/worksheets/_rels/sheet7.xml.rels'));
+    }
+});
+
+it('cleans up the archive and worksheet spools when an Excel export fails', function (): void {
+    $writer = app(SidangReportWriter::class);
+    $before = glob(sys_get_temp_dir().'/sita-office-*');
+    expect(fn () => $writer->prepare([], 'Uji'))->toThrow(Symfony\Component\HttpKernel\Exception\HttpException::class, SidangReportWriter::EMPTY_MESSAGE);
+    expect(array_diff(glob(sys_get_temp_dir().'/sita-office-*'), $before))->toBe([]);
+
+    [$defense, , , $scores] = sidangPaperFixture();
+    app(SidangPaperService::class)->record($defense, User::factory()->asSuperAdmin()->create(), ['scores' => $scores]);
+    $attempt = $defense->fresh(['project.student.mahasiswaProfile', 'project.programStudi', 'examiners.lecturer.dosenProfile', 'titleVersion']);
+    $streams = get_resources('stream');
+    $spools = [];
+    $rows = function () use ($attempt, $streams, &$spools): Generator {
+        yield from array_fill(0, 10, $attempt);
+        foreach (array_diff_key(get_resources('stream'), $streams) as $stream) {
+            $path = stream_get_meta_data($stream)['uri'];
+            if (is_file($path)) {
+                $spools[] = $path;
+            }
+        }
+        throw new RuntimeException('Simulasi gagal setelah menulis baris tambahan.');
+    };
+
+    expect(fn () => $writer->prepare($rows(), 'Uji'))->toThrow(RuntimeException::class, 'Simulasi gagal setelah menulis baris tambahan.');
+    expect($spools)->toHaveCount(2)
+        ->and(array_filter($spools, 'is_file'))->toBe([])
+        ->and(array_diff(glob(sys_get_temp_dir().'/sita-office-*'), $before))->toBe([]);
 });
 
 it('intersects the admin selection token with the requested attempts and rejects another user token', function (): void {
@@ -1010,4 +1060,106 @@ it('limits kaprodi to the own program for the paper, the Word packet and the Exc
     DosenProfile::factory()->create(['user_id' => $outsider->id, 'program_studi_id' => $ownProgram->id, 'is_active' => true]);
     $this->actingAs($outsider)->get(route('sidang.paper.print', $own))->assertForbidden();
     $this->post(route('sidang.report'))->assertForbidden();
+});
+
+it('corrects a single final No SK from Admin and Kaprodi and exports the latest number without changing the final result', function (): void {
+    [$defense, $student, $program, $scores] = sidangPaperFixture();
+    $admin = User::factory()->asAdmin()->create();
+    AdminProfile::factory()->create(['user_id' => $admin->id, 'program_studi_id' => $program->id]);
+    $kaprodi = User::factory()->asKaprodi()->create();
+    KaprodiAssignment::factory()->create(['user_id' => $kaprodi->id, 'program_studi_id' => $program->id]);
+    $service = app(SidangPaperService::class);
+    $service->record($defense, $admin, ['sidang_sk' => '001/ADUM', 'scores' => $scores]);
+    app(ThesisProjectAdminService::class)->completeSidang($defense->project, $admin->id, 'pass', 'Keputusan resmi.');
+    $defense->refresh();
+    $snapshot = $defense->sidang_paper;
+    $panel = $defense->examiners()->orderBy('id')->get()->toArray();
+
+    $this->actingAs($admin);
+    Livewire::test(ManageSidangPaper::class, ['record' => $defense->project_id, 'defense' => $defense->id])
+        ->mountAction('correctSk')->assertActionMounted('correctSk')
+        ->setActionData(['sidang_sk' => '002/ADUM'])
+        ->callMountedAction()->assertHasNoActionErrors()
+        ->assertSee('Riwayat koreksi No SK')->assertSee('002/ADUM');
+
+    $filters = ['search' => $student->name, 'status' => 'completed'];
+    $url = route('sidang.paper.correct-sk', ['defense' => $defense, ...$filters]);
+    $version = $service->skVersion($defense->fresh());
+    $this->actingAs($kaprodi->fresh())->patch($url, ['sidang_sk' => ' 003/ADUM ', 'expected_version' => $version])
+        ->assertSessionHasNoErrors()->assertRedirect(route('sidang.paper.show', ['defense' => $defense, ...$filters]));
+    $this->get(route('sidang.paper.show', $defense))->assertInertia(fn (Assert $page) => $page
+        ->where('defense.sk', '003/ADUM')
+        ->where('defense.editable', false)
+        ->has('defense.skHistory', 2)
+        ->where('defense.skHistory.0.oldNumber', '002/ADUM')
+        ->where('defense.skHistory.0.newNumber', '003/ADUM')
+        ->where('defense.skHistory.0.actor', $kaprodi->name)
+        ->where('defense.skHistory.1.actor', $admin->name));
+    $events = $defense->project->events()->where('event_type', SidangPaperService::SK_CORRECTED_EVENT)->orderBy('id')->get();
+    expect($events->pluck('actor_user_id')->all())->toBe([$admin->id, $kaprodi->id])
+        ->and($events->first()->occurred_at)->not->toBeNull()
+        ->and($events->first()->payload)->toMatchArray(['defense_id' => $defense->id, 'old_number' => '001/ADUM', 'new_number' => '002/ADUM'])
+        ->and($defense->fresh()->sidang_paper)->toBe($snapshot)
+        ->and($defense->fresh()->status)->toBe('completed')
+        ->and($defense->fresh()->result)->toBe('pass')
+        ->and($defense->examiners()->orderBy('id')->get()->toArray())->toBe($panel);
+    $sheet = sidangReportSheet(sidangExcelContent($this->post(route('sidang.report'))->assertOk()));
+    expect($sheet)->toContain('003/ADUM')->not->toContain('001/ADUM', '002/ADUM');
+    expect(fn () => $service->assignSk($admin, collect([$defense->project]), '004/MASSAL'))
+        ->toThrow(ValidationException::class, 'Ada mahasiswa dengan No SK berbeda');
+});
+
+it('rejects stale No SK edits, validates the input and does not log an unchanged number', function (): void {
+    [$defense] = sidangPaperFixture();
+    $defense->update(['status' => 'completed', 'sidang_sk' => 'AWAL']);
+    $admin = User::factory()->asSuperAdmin()->create();
+    $this->actingAs($admin);
+    $url = route('sidang.paper.correct-sk', $defense);
+    $service = app(SidangPaperService::class);
+    $oldVersion = $service->skVersion($defense);
+    $page = Livewire::test(ManageSidangPaper::class, ['record' => $defense->project_id, 'defense' => $defense->id])
+        ->mountAction('correctSk')->setActionData(['sidang_sk' => 'DRAF']);
+    expect($service->correctSk($defense, $admin, 'TERBARU', $oldVersion))->toBeTrue();
+    $page->callMountedAction()->assertHasActionErrors(['sidang_sk'])->assertActionMounted('correctSk')
+        ->assertActionDataSet(['sidang_sk' => 'DRAF']);
+
+    $this->patchJson($url, ['sidang_sk' => 'DRAF', 'expected_version' => $oldVersion])
+        ->assertUnprocessable()->assertJsonValidationErrors('sidang_sk');
+    $version = $service->skVersion($defense->fresh());
+    foreach (['   ', str_repeat('X', 151)] as $invalid) {
+        $this->patchJson($url, ['sidang_sk' => $invalid, 'expected_version' => $version])
+            ->assertUnprocessable()->assertJsonValidationErrors('sidang_sk');
+    }
+    $this->patch($url, ['sidang_sk' => 'TERBARU', 'expected_version' => $version])->assertSessionHasNoErrors();
+    expect($defense->fresh()->sidang_sk)->toBe('TERBARU')
+        ->and($service->skHistory($defense))->toHaveCount(1);
+});
+
+it('restricts No SK correction to authorized managers of the latest finalized attempt', function (): void {
+    [$defense, $student, , $scores] = sidangPaperFixture();
+    $otherProgram = ProgramStudi::factory()->create();
+    $foreignHead = User::factory()->asKaprodi()->create();
+    KaprodiAssignment::factory()->create(['user_id' => $foreignHead->id, 'program_studi_id' => $otherProgram->id]);
+    $foreignAdmin = User::factory()->asAdmin()->create();
+    AdminProfile::factory()->create(['user_id' => $foreignAdmin->id, 'program_studi_id' => $otherProgram->id]);
+    $lecturer = $defense->examiners()->findOrFail($scores['examiner_1']['panel_id'])->lecturer;
+    $data = ['sidang_sk' => 'KOREKSI', 'expected_version' => app(SidangPaperService::class)->skVersion($defense)];
+    $url = route('sidang.paper.correct-sk', $defense);
+
+    $defense->update(['status' => 'completed']);
+    foreach ([$foreignHead->fresh(), $foreignAdmin, $lecturer, $student] as $actor) {
+        $this->actingAs($actor)->patchJson($url, $data)->assertForbidden();
+    }
+    $this->actingAs(User::factory()->asSuperAdmin()->create());
+    foreach (['scheduled', 'awaiting_finalization', 'cancelled'] as $status) {
+        $defense->update(['status' => $status]);
+        $this->patchJson($url, $data)->assertUnprocessable()->assertJsonValidationErrors('sidang_sk');
+    }
+    $defense->update(['status' => 'completed']);
+    $defense->project->sidangDefenses()->create([
+        'type' => 'sidang', 'attempt_no' => 2, 'status' => 'scheduled', 'scheduled_for' => now(),
+    ]);
+    $this->patchJson($url, $data)->assertUnprocessable()->assertJsonValidationErrors('sidang_sk');
+    expect($defense->fresh()->sidang_sk)->toBeNull()
+        ->and(app(SidangPaperService::class)->skHistory($defense))->toBe([]);
 });

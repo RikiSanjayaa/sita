@@ -115,6 +115,7 @@ type ExamRow = {
     typeKey: string;
     status: string;
     statusKey: string;
+    inFinalizationQueue: boolean;
     result: string;
     averageScore: number | null;
     scoreRequired: boolean;
@@ -443,10 +444,16 @@ export default function KaprodiSemproSidangPage() {
                     .toLowerCase()
                     .includes(query);
 
+            const matchesStatus =
+                statusFilter === 'awaiting_finalization'
+                    ? exam.inFinalizationQueue
+                    : statusFilter === 'semua' ||
+                      exam.statusKey === statusFilter;
+
             return (
                 matchesSearch &&
                 (typeFilter === 'semua' || exam.typeKey === typeFilter) &&
-                (statusFilter === 'semua' || exam.statusKey === statusFilter)
+                matchesStatus
             );
         });
     }, [exams, search, statusFilter, typeFilter]);
@@ -484,9 +491,7 @@ export default function KaprodiSemproSidangPage() {
             {
                 label: 'Finalisasi',
                 value: 'awaiting_finalization',
-                count: exams.filter(
-                    (exam) => exam.statusKey === 'awaiting_finalization',
-                ).length,
+                count: exams.filter((exam) => exam.inFinalizationQueue).length,
             },
             {
                 label: 'Selesai',

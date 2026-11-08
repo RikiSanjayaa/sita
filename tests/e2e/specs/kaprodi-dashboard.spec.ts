@@ -1,4 +1,10 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import {
+    expect,
+    test,
+    type Locator,
+    type Page,
+    type TestInfo,
+} from '@playwright/test';
 
 import {
     dashboardNames,
@@ -60,6 +66,31 @@ async function expectNoOverflow(page: Page): Promise<void> {
         .toBe(true);
 }
 
+async function captureQueue(page: Page, info: TestInfo, label: string) {
+    for (const width of [1280, 390]) {
+        await page.setViewportSize({ width, height: 920 });
+        for (const theme of ['light', 'dark']) {
+            await page.evaluate(
+                (mode) =>
+                    document.documentElement.classList.toggle(
+                        'dark',
+                        mode === 'dark',
+                    ),
+                theme,
+            );
+            await expectNoOverflow(page);
+            await info.attach(`${label}-${width}-${theme}`, {
+                body: await page.screenshot({
+                    fullPage: true,
+                    animations: 'disabled',
+                }),
+                contentType: 'image/png',
+            });
+        }
+    }
+    await page.setViewportSize({ width: 1280, height: 920 });
+}
+
 async function expectTargetSize(links: Locator): Promise<void> {
     for (const link of await links.all()) {
         const box = await link.boundingBox();
@@ -107,7 +138,7 @@ function studentRow(page: Page, name: string): Locator {
     return page.locator('tr').filter({ hasText: name });
 }
 
-test('populated dashboard shows headings, real counts, one featured item with at most one name, and compact secondary items', async ({
+test('populated dashboard shows one featured name and the remaining queue count', async ({
     page,
 }, testInfo) => {
     await withKaprodiDashboard(page, 'populated', async (fixture) => {
@@ -162,29 +193,10 @@ test('populated dashboard shows headings, real counts, one featured item with at
         expect(names.filter((name) => contextText.includes(name)).length).toBe(
             1,
         );
-        expect(contextText).not.toContain(',');
-        for (const width of [1280, 390]) {
-            await page.setViewportSize({ width, height: 920 });
-            for (const theme of ['light', 'dark']) {
-                await page.evaluate(
-                    (mode) =>
-                        document.documentElement.classList.toggle(
-                            'dark',
-                            mode === 'dark',
-                        ),
-                    theme,
-                );
-                await expectNoOverflow(page);
-                await testInfo.attach(`kaprodi-ringkasan-${width}-${theme}`, {
-                    body: await page.screenshot({
-                        fullPage: true,
-                        animations: 'disabled',
-                    }),
-                    contentType: 'image/png',
-                });
-            }
-        }
-        await page.setViewportSize({ width: 1280, height: 920 });
+        await expect(context).toHaveText(
+            `Terkait: ${names.find((name) => contextText.includes(name))} dan 1 lainnya`,
+        );
+        await captureQueue(page, testInfo, 'kaprodi-antrean-banyak');
 
         // Secondary items: label, count and action only. No names, context or descriptions.
         for (let index = 1; index < populatedQueue.length; index += 1) {
@@ -234,6 +246,33 @@ test('populated dashboard shows headings, real counts, one featured item with at
         await expect(
             page.getByRole('link', { name: 'Bimbingan Saya' }),
         ).toHaveAttribute('href', '/dosen/dashboard');
+    });
+});
+
+test('a queue of one shows only the name and opens only the eligible exam', async ({
+    page,
+}, testInfo) => {
+    await withKaprodiDashboard(page, 'single-finalization', async () => {
+        const featured = queueRows(page).first();
+        await expect(featured.getByText('1', { exact: true })).toBeVisible();
+        await expect(
+            featured.locator('p').filter({ hasText: /^Terkait:/ }),
+        ).toHaveText(`Terkait: ${dashboardNames.awaitingA}`);
+        await captureQueue(page, testInfo, 'kaprodi-antrean-satu');
+
+        await featured.getByRole('link', { name: 'Buka ujian' }).click();
+        await expectDestination(page, populatedQueue[0].href);
+        await expect(studentRow(page, dashboardNames.awaitingA)).toBeVisible();
+        await expect(
+            studentRow(page, dashboardNames.historicalFinalization),
+        ).toHaveCount(0);
+        await captureQueue(page, testInfo, 'kaprodi-daftar-finalisasi');
+        await page
+            .getByRole('radio', { name: 'Semua Status', exact: true })
+            .click();
+        await expect(
+            studentRow(page, dashboardNames.historicalFinalization),
+        ).toBeVisible();
     });
 });
 

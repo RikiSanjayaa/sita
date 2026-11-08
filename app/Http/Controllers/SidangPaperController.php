@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Filament\Resources\ThesisProjects\ThesisProjectResource;
+use App\Http\Requests\CorrectSidangSkRequest;
 use App\Http\Requests\StoreSidangPaperRequest;
 use App\Models\ThesisDefense;
 use App\Policies\SidangPaperPolicy;
@@ -43,6 +44,8 @@ class SidangPaperController extends Controller
         $scores = app(SidangScoreService::class);
         $summary = $scores->summary($defense);
         $terms = AcademicTerminology::forProject($project);
+        $paper = app(SidangPaperService::class);
+        $canCorrectSk = $paper->canCorrectSk($defense);
 
         return Inertia::render('sidang/berkas', [
             'defense' => [
@@ -59,6 +62,8 @@ class SidangPaperController extends Controller
                 'schedule' => WitaDateTime::format($defense->scheduled_for),
                 'location' => $defense->location,
                 'sk' => $defense->sidang_sk,
+                'skVersion' => $canCorrectSk ? $paper->skVersion($defense) : null,
+                'skHistory' => $defense->status === 'completed' ? $paper->skHistory($defense) : [],
                 'panel' => $defense->examiners->sortBy('order_no')->values()->map(fn ($examiner): array => [
                     'id' => $examiner->id,
                     'name' => $examiner->lecturer?->name ?? '-',
@@ -91,6 +96,15 @@ class SidangPaperController extends Controller
             'dari' => $request->query('dari') === 'daftar' ? 'daftar' : null,
             ...$this->returnFilters($request),
         ])->with('success', 'Data berkas sidang disimpan.');
+    }
+
+    public function correctSk(CorrectSidangSkRequest $request, ThesisDefense $defense, SidangPaperService $service): RedirectResponse
+    {
+        $data = $request->validated();
+        $changed = $service->correctSk($defense, $request->user(), $data['sidang_sk'], $data['expected_version']);
+
+        return to_route('sidang.paper.show', ['defense' => $defense, ...$this->returnFilters($request)])
+            ->with('success', $changed ? 'Koreksi No SK disimpan.' : 'No SK tetap sama.');
     }
 
     /** @return array<string, string> */

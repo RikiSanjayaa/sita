@@ -2,6 +2,8 @@
 
 **Acuan:** review Riki tanggal 6 November 2026 WITA. Panduan ini menjabarkan pekerjaan yang perlu dilakukan beserta cara memeriksanya. Poin bertanda **Keputusan** adalah pilihan yang perlu disepakati sebelum perilaku tersebut diterapkan.
 
+Untuk keputusan review 8 November dan pekerjaan yang belum diterapkan, ikuti [rencana tindak lanjut terbaru](RENCANA-TINDAK-LANJUT-PR-192.md).
+
 [PR #192](https://github.com/RikiSanjayaa/sita/pull/192) · [Catatan awal](https://github.com/RikiSanjayaa/sita/pull/192#issuecomment-6686316595) · [Review manual](https://github.com/RikiSanjayaa/sita/pull/192#pullrequestreview-5802638014) · [Tracking #35](https://github.com/RikiSanjayaa/sita/issues/35)
 
 ## 1. Mulai dari branch yang sudah memuat perubahan Riki
@@ -73,7 +75,7 @@ Migrasi data hanya mengisi skor panel yang kosong dari JSON lama dengan ID dan p
 
 Rekap mengikuti filter tabel dan rentang jadwal WITA. Periode tersimpan mengambil alih tanggal dan judul manual. Endpoint mengecek scope prodi, pemilik token pilihan, attempt, dan kelengkapan tiga nilai sebelum mengirim file. Hasil kosong memberi respons 422 dan pesan yang sama di dialog Admin dan Kaprodi, dengan isian tetap tersedia.
 
-OpenSpout 4.32 membuat workbook baru. Uji ekspor dasar tidak membawa area cetak atau pengaturan printer dari template. Penulis rekap memakai XML worksheet dari template resmi dan menulis blok baris tambahan serta merge ke file sementara. Uji lokal penulis dengan data sintetis mencatat puncak memori PHP tambahan 5.190.408 byte pada 1.000 entri dan 5.198.184 byte pada 10.000 entri. Penerimaan pendekatan ini dan kebutuhan laporan progres untuk sidang belum final masih perlu keputusan di #23.
+Penulis rekap memakai XML worksheet dari template resmi dan menulis blok baris tambahan serta merge ke file sementara. Endpoint membaca data dalam kelompok 200 lewat `lazyById`. Issue #23 menyetujui pendekatan ini dan penghapusan deklarasi langsung OpenSpout jika aplikasi tidak memakainya. Filament tetap membutuhkan OpenSpout 4.32.0 melalui lockfile. Laporan progres untuk sidang belum final tetap menjadi bagian terbuka dari issue. [Keputusan issue #23](https://github.com/RikiSanjayaa/sita/issues/23)
 
 **File utama** — `app/Http/Controllers/SidangReportController.php`, Form Request baru untuk rekap, `app/Services/SidangReportWriter.php`, `app/Services/KaprodiPortalService.php`, `app/Services/SidangReportPeriodService.php`, `app/Filament/Resources/ThesisProjects/Pages/ListThesisProjects.php`, dan `resources/js/pages/kaprodi/sempro-sidang.tsx`.
 
@@ -81,11 +83,31 @@ OpenSpout 4.32 membuat workbook baru. Uji ekspor dasar tidak membawa area cetak 
 - Buang syarat `whereNotNull('sidang_paper')`. Pakai kriteria hasil final dan nilai lengkap dari paket 2. Selaraskan pembentuk daftar pilihan di Admin, `readyForReport` di Kaprodi, dan filter endpoint supaya sidang dari jalur portal dosen ikut terambil bila memenuhi syarat. Pakai konteks prodi dan periode untuk judul dan blok tanda tangan. Saat ekspor beberapa prodi, ambil metadata masing-masing sheet dari prodi terkait.
 - Bila tidak ada baris yang layak, beri pesan **Tidak ada sidang lulus yang sudah final pada filter ini** dan biarkan petugas mengoreksi pilihan. Gunakan respons yang ditangani secara konsisten oleh Admin dan Kaprodi. Cek set data layak sebelum mengirim header unduhan. Jika dialog ditutup setelah ekspor, lakukan setelah aplikasi menerima respons file yang berhasil. Pertahankan dialog pada error dan hasil kosong.
 - **Keputusan:** #23 meminta filter selesai dan belum selesai, sedangkan review terakhir menyebut syarat Excel nilai berupa sidang lulus, final, dan tiga nilai. Usulan kerja adalah menjaga Excel nilai sebagai rekap final, memberi informasi pada filter yang tidak menghasilkan baris, dan meminta konfirmasi apakah dibutuhkan laporan progres terpisah untuk status belum selesai. Catat pilihan di #23 sebelum menganggap acceptance filter lengkap.
-- Buktikan penulisan Excel benar-benar bertahap. `lazyById` saat ini membatasi pembacaan data, sementara DOM pada writer masih menampung sheet. Uji pendekatan streaming OpenSpout terhadap template resmi dan bandingkan rumus, pembulatan, merged cells, gaya, blok tanda tangan, sheet per prodi, serta area cetak. Jika bagian template tersebut membutuhkan penulisan XML bertahap ke file sementara, sepakati perubahan pendekatan dan penggunaan dependency OpenSpout dengan maintainer sebelum menyatakan #23 selesai. Ukur puncak memori terhadap jumlah baris yang berbeda dan bersihkan file sementara saat selesai atau gagal. Nilai teks pengguna yang diawali karakter rumus tetap ditulis sebagai teks.
+- Batasi DOM pada template dasar per sheet. Tulis baris tambahan dan merge ke file sementara. Uji volume, konsistensi rumus, pembulatan, gaya, blok tanda tangan, sheet per prodi, serta area cetak. Uji pembersihan file sementara saat unduhan selesai, data kosong, panel tanpa profil, atau pembuatan file terputus. Nilai teks pengguna yang diawali karakter rumus tetap ditulis sebagai teks.
 
 **Selesai ketika:** hasil ekspor mengikuti filter yang disepakati dan hanya berisi prodi yang diizinkan. Jalur berkas dan digital menghasilkan baris yang sama untuk panel dan nilai yang sama. Filter kosong memberi pesan. Uji rekap lebih dari kapasitas template awal serta beberapa prodi memastikan rumus, NIDN, blok tanda tangan, dan area cetak masih benar. Bukti uji volume menunjukkan penulisan baris tidak menumpuk seluruh sheet di memori.
 
 [Issue #23](https://github.com/RikiSanjayaa/sita/issues/23) · [Ekspor kosong dan jalur digital](https://github.com/RikiSanjayaa/sita/pull/192#discussion_r4494294068) · [Pengaturan ekspor Admin dan Kaprodi](https://github.com/RikiSanjayaa/sita/pull/192#discussion_r4494294129)
+
+### Bukti ekspor ulang
+
+Setiap perintah menjalankan proses PHP terpisah. Fixture sintetis membagi data sama rata ke dua prodi dan menghasilkan No SK berbeda tiap 100 entri. Argumen nama berkas menyimpan salinan hasil untuk diperiksa.
+
+```text
+php scripts/benchmark-sidang-report.php 1000 rekap-1000.xlsx
+php scripts/benchmark-sidang-report.php 10000 rekap-10000.xlsx
+```
+
+| Entri | Sheet | Puncak tambahan PHP | Waktu writer | Ukuran XLSX |
+| ----- | ----- | ------------------- | ------------ | ----------- |
+| 1.000 | 2     | 7.608.504 byte      | 1,844 detik  | 249.624 byte |
+| 10.000 | 2    | 7.608.504 byte      | 15,608 detik | 2.374.305 byte |
+
+Pengukuran lokal Windows dengan PHP 8.4.10 mencakup generator fixture dan writer setelah Laravel siap. Angka ini mengukur alokasi PHP dari `memory_get_peak_usage()` terhadap baseline sebelum ekspor. Waktu dan memori permintaan HTTP, basis data, serta RSS proses berada di luar pengukuran.
+
+Pemeriksaan kedua XLSX membandingkan setiap entri dengan fixture dan mengecek urutan serta referensi sel, rumus nilai berbobot dan pembulatan, nilai huruf, gaya, merge No SK, blok tanda tangan, pemisahan prodi, area cetak, serta pengaturan printer. Microsoft Excel 16.0 membuka kedua file dan menghitung ulang nilai akhir contoh 79,55, nilai bulat 80, dan B+. Area cetak kedua prodi mencapai baris 1.522 pada 1.000 entri dan baris 15.022 pada 10.000 entri.
+
+`SidangPaperWorkflowTest` mencakup filter, cakupan Admin/Kaprodi, unduhan dan pembersihan file sementara. Uji impor dan unduhan template lulus setelah pembaruan deklarasi Composer. Paket pengujian backend terarah lulus 156 tes dengan 1.557 asersi.
 
 ## 5. Halaman kerja Admin dan Kaprodi
 
@@ -159,7 +181,7 @@ Untuk pekerjaan ini dan perbaikan berikutnya, tulis **tes regresi untuk setiap b
 | --- | --- | --- |
 | Pengaturan prodi dan panel | Pest `SidangPaperWorkflowTest`, `ThesisProjectResourceTest`, dan `KaprodiPortalTest`. Playwright `admin-sidang`, `kaprodi-portal`, dan tahap jadwal pada `golden-path`. | Pengaturan 0/2, panel tidak lengkap, pesan inline, dan input tetap ada setelah ditolak. |
 | Koreksi skor dan finalisasi | Pest untuk akses, audit, data lama, dan transaksi. Jalankan `SecretSidangExaminersTest`. Playwright `dosen-penilaian`, `thesis-recovery`, dan `golden-path`. | Kedua jalur skor, hasil berbobot, revisi, nilai yang cocok, serta kerahasiaan penguji sebelum selesai. |
-| Excel dan SK | Pest `SidangPaperWorkflowTest` untuk kedua sumber nilai, prodi, periode, filter kosong, dan nilai final. Playwright `sidang-paper` untuk dialog dan unduhan. | Workbook satu/multi-prodi, hasil digital yang sah, pesan kosong, file dengan banyak baris, dan pengukuran memori. |
+| Excel dan SK | Pest `SidangPaperWorkflowTest` untuk kedua sumber nilai, prodi, periode, filter kosong, dan nilai final. `SidangSkVersionTest` untuk versi konfirmasi No SK. Playwright `sidang-paper` untuk dialog, koreksi dan unduhan. | Workbook satu/multi-prodi, hasil digital yang sah, pesan kosong, volume dan memori, nomor lama/baru serta penguncian nilai final. |
 | Navigasi dan tampilan | Playwright dari daftar ke berkas, lalu kembali dengan filter. Jalankan detector untuk area terkait sesuai AGENTS.md. | Tangkapan layar data demo 1280 px dan 390 px dalam tema terang dan gelap, termasuk dialog/error yang berubah. |
 | Word dan cetak A4 | Pest untuk isi dan otorisasi paket serta lembar. Uji hasil render Word dan print dari browser. | PDF atau tangkapan layar pembanding untuk template yang dikerjakan, termasuk lintas prodi dan dokumen sebelum/sesudah finalisasi. |
 

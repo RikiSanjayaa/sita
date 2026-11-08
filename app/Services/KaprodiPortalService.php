@@ -144,6 +144,7 @@ class KaprodiPortalService
                 'typeKey' => $defense->type,
                 'status' => $this->statusLabel($defense->status),
                 'statusKey' => $defense->status,
+                'inFinalizationQueue' => $this->isInFinalizationQueue($defense),
                 'result' => $this->defenseResultLabel($defense),
                 'averageScore' => $scoreSummaries[$defense->id]['value'] ?? $this->averageScore($defense),
                 'scoreRequired' => $defense->requiresScore(),
@@ -1246,12 +1247,11 @@ class KaprodiPortalService
         $awaitingFinalization = ThesisDefense::query()
             ->whereHas('project', fn($query) => $query
                 ->current()
-                ->where('program_studi_id', $programStudi->id)
-                ->where('state', 'active')
-                ->whereNull('archived_at'))
+                ->where('program_studi_id', $programStudi->id))
             ->where('status', 'awaiting_finalization')
             ->with('project.student')
             ->get()
+            ->filter(fn (ThesisDefense $defense): bool => $this->isInFinalizationQueue($defense))
             ->map(fn(ThesisDefense $defense): string => $defense->project?->student?->name ?? 'Mahasiswa');
 
         $items = [
@@ -1338,6 +1338,13 @@ class KaprodiPortalService
                 'names' => $index === 0 ? array_slice($item['names'], 0, 1) : [],
             ])
             ->all();
+    }
+
+    private function isInFinalizationQueue(ThesisDefense $defense): bool
+    {
+        return $defense->status === 'awaiting_finalization'
+            && $defense->project?->state === 'active'
+            && $defense->project->archived_at === null;
     }
 
     /**

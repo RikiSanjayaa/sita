@@ -37,6 +37,8 @@ interface ActionQueueItemProps {
     icon?: LucideIcon;
     /** Status or metadata rendered beside the title (e.g. a badge). */
     meta?: ReactNode;
+    /** One contextual name for the featured card's counted queue. */
+    previewName?: string;
     /**
      * Interactive control(s) such as a Button, Inertia Link or anchor.
      * Rendered as a sibling of the text so controls are never nested.
@@ -53,6 +55,7 @@ export function ActionQueueItem({
     description,
     icon: Icon,
     meta,
+    previewName,
     action,
     className,
     variant = 'row',
@@ -61,6 +64,19 @@ export function ActionQueueItem({
 }: ActionQueueItemProps) {
     if (variant !== 'row') {
         const featured = variant === 'featured';
+        const remaining = (count ?? 0) - 1;
+        const context =
+            featured && previewName ? (
+                <p className="text-xs leading-relaxed text-pretty wrap-anywhere text-muted-foreground">
+                    <span className="font-medium text-foreground">
+                        Terkait:{' '}
+                    </span>
+                    {previewName}
+                    {remaining > 0 && ` dan ${remaining} lainnya`}
+                </p>
+            ) : (
+                meta
+            );
 
         return (
             <li
@@ -113,7 +129,7 @@ export function ActionQueueItem({
                         {description}
                     </p>
                 )}
-                {(meta || action) && (
+                {(context || action) && (
                     <div
                         className={cn(
                             'mt-auto flex items-end justify-end gap-3',
@@ -121,9 +137,9 @@ export function ActionQueueItem({
                                 'flex-wrap justify-between border-t pt-2',
                         )}
                     >
-                        {meta && (
+                        {context && (
                             <div className="min-w-0 flex-1 basis-32">
-                                {meta}
+                                {context}
                             </div>
                         )}
                         {action && <div className="shrink-0">{action}</div>}

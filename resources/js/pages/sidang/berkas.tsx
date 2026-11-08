@@ -13,12 +13,14 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
+    DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import KaprodiLayout from '@/layouts/kaprodi-layout';
 import { neutralAcademicTerminology } from '@/lib/academic-terminology';
 import {
+    correctSk,
     download,
     preview as printPreview,
     store,
@@ -61,6 +63,8 @@ interface Props {
         schedule: string | null;
         location: string | null;
         sk: string | null;
+        skVersion: string | null;
+        skHistory: SkChange[];
         panel: Panel[];
         panelIds: Record<ScoreRole, number> | null;
         paperPanelHint: string | null;
@@ -71,6 +75,128 @@ interface Props {
     backUrl: string;
     studentProfileUrl: string;
     returnFilters: Record<string, string | number>;
+}
+
+type SkChange = {
+    id: number;
+    oldNumber: string | null;
+    newNumber: string;
+    actor: string;
+    occurredAt: string | null;
+};
+
+function CorrectSkDialog({
+    defense,
+    returnFilters,
+}: Pick<Props, 'defense' | 'returnFilters'>) {
+    const [open, setOpen] = useState(false);
+    const pending = useRef(false);
+    const form = useForm({ sidang_sk: '', expected_version: '' });
+
+    return (
+        <Dialog
+            open={open}
+            onOpenChange={(next) => {
+                if (pending.current) return;
+                if (next) {
+                    form.clearErrors();
+                    form.setData({
+                        sidang_sk: '',
+                        expected_version: defense.skVersion ?? '',
+                    });
+                }
+                setOpen(next);
+            }}
+        >
+            <DialogTrigger asChild>
+                <Button type="button" variant="outline" className="mt-4">
+                    Koreksi No SK
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Koreksi No SK</DialogTitle>
+                    <DialogDescription className="text-pretty">
+                        {defense.name} · {defense.label}. Nilai dan hasil final
+                        tetap terkunci.
+                    </DialogDescription>
+                </DialogHeader>
+                <form
+                    className="space-y-4"
+                    onSubmit={(event) => {
+                        event.preventDefault();
+                        if (pending.current || !form.data.sidang_sk.trim())
+                            return;
+                        pending.current = true;
+                        form.patch(
+                            correctSk(defense.id, { query: returnFilters }).url,
+                            {
+                                preserveScroll: true,
+                                onSuccess: () => setOpen(false),
+                                onFinish: () => {
+                                    pending.current = false;
+                                },
+                            },
+                        );
+                    }}
+                >
+                    <dl className="space-y-1 text-sm">
+                        <dt className="text-muted-foreground">
+                            No SK saat ini
+                        </dt>
+                        <dd className="font-medium wrap-anywhere">
+                            {defense.sk || 'Belum diisi'}
+                        </dd>
+                    </dl>
+                    <div className="space-y-2">
+                        <Label htmlFor="corrected-sk">No SK baru</Label>
+                        <Input
+                            id="corrected-sk"
+                            maxLength={150}
+                            required
+                            aria-invalid={!!form.errors.sidang_sk}
+                            aria-describedby={
+                                form.errors.sidang_sk
+                                    ? 'corrected-sk-error'
+                                    : undefined
+                            }
+                            value={form.data.sidang_sk}
+                            onChange={(event) =>
+                                form.setData('sidang_sk', event.target.value)
+                            }
+                        />
+                        {form.errors.sidang_sk && (
+                            <p
+                                id="corrected-sk-error"
+                                role="alert"
+                                className="text-sm text-destructive"
+                            >
+                                {form.errors.sidang_sk}
+                            </p>
+                        )}
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            disabled={form.processing}
+                            onClick={() => setOpen(false)}
+                        >
+                            Batal
+                        </Button>
+                        <Button
+                            type="submit"
+                            disabled={
+                                form.processing || !form.data.sidang_sk.trim()
+                            }
+                        >
+                            Simpan koreksi
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
 }
 
 const selectClass =
@@ -312,7 +438,11 @@ export default function BerkasSidang({
                             id="sidang-sk"
                             maxLength={150}
                             disabled={!defense.editable}
-                            value={form.data.sidang_sk}
+                            value={
+                                defense.editable
+                                    ? form.data.sidang_sk
+                                    : (defense.sk ?? '')
+                            }
                             onChange={(event) =>
                                 form.setData('sidang_sk', event.target.value)
                             }
@@ -335,6 +465,59 @@ export default function BerkasSidang({
                         >
                             Simpan No SK
                         </Button>
+                    )}
+                    {defense.skVersion && (
+                        <CorrectSkDialog
+                            defense={defense}
+                            returnFilters={returnFilters}
+                        />
+                    )}
+                    {defense.status === 'completed' && (
+                        <div className="mt-4 space-y-2 border-t pt-4">
+                            <h3 className="text-sm font-semibold">
+                                Riwayat koreksi No SK
+                            </h3>
+                            {defense.skHistory.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">
+                                    Belum ada koreksi No SK.
+                                </p>
+                            ) : (
+                                <ul className="divide-y text-sm">
+                                    {defense.skHistory.map((change) => (
+                                        <li
+                                            key={change.id}
+                                            className="space-y-2 py-3"
+                                        >
+                                            <dl className="grid gap-2 sm:grid-cols-2">
+                                                <div>
+                                                    <dt className="text-muted-foreground">
+                                                        Nomor lama
+                                                    </dt>
+                                                    <dd className="wrap-anywhere">
+                                                        {change.oldNumber ||
+                                                            'Belum diisi'}
+                                                    </dd>
+                                                </div>
+                                                <div>
+                                                    <dt className="text-muted-foreground">
+                                                        Nomor baru
+                                                    </dt>
+                                                    <dd className="wrap-anywhere">
+                                                        {change.newNumber}
+                                                    </dd>
+                                                </div>
+                                            </dl>
+                                            <p className="text-muted-foreground">
+                                                {change.actor}
+                                                {change.occurredAt
+                                                    ? ` · ${change.occurredAt}`
+                                                    : ''}
+                                            </p>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
                     )}
                 </SectionCard>
                 <SectionCard

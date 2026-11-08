@@ -673,3 +673,101 @@ test('Admin and Kaprodi see the affected student when a legacy panel cannot yet 
         }
     }
 });
+
+test('Admin and Kaprodi correct a finalized No SK without reopening grades', async ({
+    browser,
+    page,
+}, info) => {
+    finalizeDemoSidang();
+    const student = 'Sinta Sidang Terjadwal';
+    const admin = await browser.newContext({
+        storageState: authStatePath('admin'),
+    });
+    try {
+        const adminPage = await admin.newPage();
+        await adminPage.goto('/admin/thesis-projects?tab=berkas-sidang');
+        const row = adminPage.getByRole('row').filter({ hasText: student });
+        await row
+            .getByRole('link', { name: 'Lihat Berkas', exact: true })
+            .click();
+        await adminPage
+            .getByRole('button', { name: 'Koreksi No SK', exact: true })
+            .click();
+        const adminDialog = adminPage
+            .getByRole('dialog')
+            .filter({ hasText: 'Koreksi No SK' });
+        await expect(adminDialog).toContainText(student);
+        await expect(adminDialog).toContainText('Belum diisi');
+        await adminDialog
+            .getByRole('textbox', { name: 'No SK baru' })
+            .fill('001/ADUM/UJI');
+        await captureReport(adminPage, info, 'admin-konfirmasi-no-sk');
+        await adminDialog
+            .getByRole('button', { name: 'Batal', exact: true })
+            .click();
+        await expect(adminDialog).toBeHidden();
+        await expect(
+            adminPage.getByText('Belum ada koreksi No SK.'),
+        ).toBeVisible();
+        await adminPage
+            .getByRole('button', { name: 'Koreksi No SK', exact: true })
+            .click();
+        await adminDialog
+            .getByRole('textbox', { name: 'No SK baru' })
+            .fill('001/ADUM/UJI');
+        await adminDialog
+            .getByRole('button', { name: 'Simpan koreksi', exact: true })
+            .click();
+        await expect(adminDialog).toBeHidden();
+        await expect(
+            adminPage.getByText('001/ADUM/UJI', { exact: true }),
+        ).toBeVisible();
+        await expect(
+            adminPage.getByRole('button', { name: 'Simpan untuk Finalisasi' }),
+        ).toBeDisabled();
+        await captureReport(adminPage, info, 'admin-riwayat-no-sk', true);
+
+        await page.goto('/kaprodi/sempro-sidang?status=completed');
+        await page
+            .getByPlaceholder('Cari nama, NIM, judul, atau dosen...')
+            .fill(student);
+        const kaprodiRow = page.getByRole('row').filter({
+            has: page.getByRole('cell', { name: /^Sidang .*#/ }),
+            hasText: student,
+        });
+        await kaprodiRow.getByRole('button', { name: 'Aksi lainnya' }).click();
+        await page
+            .getByRole('menuitem', { name: 'Kelola berkas sidang' })
+            .click();
+        await page
+            .getByRole('button', { name: 'Koreksi No SK', exact: true })
+            .click();
+        const dialog = page.getByRole('dialog', { name: 'Koreksi No SK' });
+        await expect(dialog).toContainText('001/ADUM/UJI');
+        await dialog
+            .getByRole('textbox', { name: 'No SK baru' })
+            .fill('002/ADUM/UJI');
+        await captureReport(page, info, 'kaprodi-konfirmasi-no-sk');
+        await dialog
+            .getByRole('button', { name: 'Simpan koreksi', exact: true })
+            .click();
+        await expect(dialog).toBeHidden();
+        await expect(page.getByLabel('Nomor SK', { exact: true })).toHaveValue(
+            '002/ADUM/UJI',
+        );
+        const history = page.locator('li').filter({ hasText: '002/ADUM/UJI' });
+        await expect(history).toContainText('001/ADUM/UJI');
+        await expect(page.getByText(/Nilai akhir 80/)).toBeVisible();
+        await expect(
+            page.getByLabel('Nilai penguji 1', { exact: true }),
+        ).toHaveCount(0);
+        await captureReport(page, info, 'kaprodi-riwayat-no-sk', true);
+        await page.getByRole('link', { name: 'Kembali', exact: true }).click();
+        await expect(page).toHaveURL(/status=completed/);
+        await expect(
+            page.getByPlaceholder('Cari nama, NIM, judul, atau dosen...'),
+        ).toHaveValue(student);
+    } finally {
+        await admin.close();
+    }
+});
