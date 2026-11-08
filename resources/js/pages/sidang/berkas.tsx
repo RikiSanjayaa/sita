@@ -295,7 +295,11 @@ export default function BerkasSidang({
                             Nilai dari berkas
                         </span>
                     }
-                    description="Masukkan nilai total pada lembar masing-masing dosen. Nilai yang sudah tercatat ditampilkan otomatis."
+                    description={
+                        defense.editable && canEnterScores
+                            ? 'Masukkan nilai total pada lembar masing-masing dosen. Nilai yang sudah tercatat ditampilkan otomatis.'
+                            : undefined
+                    }
                     contentClassName="flex flex-col gap-4"
                 >
                     {defense.summary && (

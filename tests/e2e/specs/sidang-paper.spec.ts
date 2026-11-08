@@ -354,6 +354,9 @@ test('legacy panels can open the packet without a paper score shortcut', async (
         await expect(
             page.getByText(/Panel lain tetap mengikuti alur penilaian Dosen/),
         ).toBeVisible();
+        await expect(
+            page.getByText(/Masukkan nilai total pada lembar/),
+        ).toHaveCount(0);
         await expect(page.getByLabel('Nilai penguji 2')).toHaveCount(0);
         await captureReport(page, testInfo, 'kaprodi-panel-lama', true);
     } finally {
