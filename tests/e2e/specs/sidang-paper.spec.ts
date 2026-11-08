@@ -337,6 +337,12 @@ test('admin and panel lecturers can print through their own workspaces', async (
                 const row = page
                     .getByRole('row')
                     .filter({ hasText: 'Sinta Sidang Terjadwal' });
+                await expect(
+                    row.getByRole('link', { name: 'Cetak / PDF', exact: true }),
+                ).toBeVisible();
+                await expect(
+                    row.getByRole('link', { name: 'Unduh Word', exact: true }),
+                ).toBeVisible();
                 const inputScore = row.getByRole('link', {
                     name: 'Input Nilai',
                     exact: true,

@@ -6,6 +6,7 @@ Pembaruan 8 November 2026. Lima paket utama sudah diterapkan. Review pada `84158
 
 ## Keputusan kerja terbaru
 
+- Daftar Admin dan detail Dosen hanya menawarkan cetak dan Word ketika template tersedia. Admin tetap dapat membuka Berkas Sidang dan memasukkan nilai jika panel memenuhi syarat. Ketersediaan template dan kelengkapan panel diperiksa terpisah.
 - Pemilik produk belum menanyakan bobot panel satu penguji dan dua pembimbing ke kampus. Tidak ada peran atau bobot yang dikarang. Ekspor sekarang menyebut nama, NIM, dan attempt yang terhalang. File campuran dibatalkan dengan 422, bukan kehilangan mahasiswa diam-diam. Pilihan data lain yang valid dapat diekspor secara eksplisit.
 - Pola UI sekarang dipertahankan: satu nama contoh pada kartu utama Kaprodi, angka seluruh antrean, tautan menuju seluruh hasil terfilter, serta breadcrumb ringkas dari renderer global. Nama/NIM/attempt tetap tampil pada identitas Berkas Sidang. Tidak ada pengecualian desain satu halaman.
 - Setelah pemilik produk meminta pendekatan terbaik, rekomendasi teknisnya tetap XML bertahap untuk menjaga template Excel. Bukti volume, rumus, merge dan area cetak menjadi bahan penerimaan maintainer terhadap #23. Requirement issue tidak diubah sepihak. Dependency langsung OpenSpout belum dihapus karena perubahan dependency memerlukan persetujuan eksplisit.

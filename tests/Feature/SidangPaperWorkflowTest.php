@@ -219,6 +219,32 @@ it('prints customized rubric rows and letterhead fields in both document formats
     }
 });
 
+it('offers document shortcuts only when a template is available, independently of score entry', function (): void {
+    [$defense, , $program, $scores] = sidangPaperFixture();
+    $lecturer = $defense->examiners()->findOrFail($scores['examiner_1']['panel_id'])->lecturer;
+
+    $this->actingAs($lecturer)->get(route('dosen.seminar-proposal'))->assertInertia(fn (Assert $page) => $page
+        ->where('defenses.0.paperUrl', route('sidang.paper.download', $defense))
+        ->where('defenses.0.paperPrintUrl', route('sidang.paper.preview', $defense)));
+
+    config(['sidang-templates.programs' => [$program->slug => null]]);
+
+    $this->get(route('dosen.seminar-proposal'))->assertInertia(fn (Assert $page) => $page
+        ->where('defenses.0.paperUrl', null)
+        ->where('defenses.0.paperPrintUrl', null));
+
+    $admin = User::factory()->asAdmin()->create();
+    AdminProfile::factory()->create(['user_id' => $admin->id, 'program_studi_id' => $program->id]);
+    $this->actingAs($admin);
+
+    Livewire::test(ListThesisProjects::class)
+        ->set('activeTab', ListThesisProjects::SIDANG_PAPER_TAB)
+        ->assertTableActionHidden('cetak_berkas_sidang', $defense->project)
+        ->assertTableActionHidden('unduh_berkas_sidang', $defense->project)
+        ->assertTableActionVisible('tindakan_berkas_sidang', $defense->project)
+        ->assertTableActionHasLabel('tindakan_berkas_sidang', 'Input Nilai', $defense->project);
+});
+
 it('prints degree terminology and both dates for an overnight WITA schedule', function (): void {
     [$defense, $student] = sidangPaperFixture();
     $student->mahasiswaProfile->update(['degree_level' => 'd3']);

@@ -15,6 +15,7 @@ use App\Services\SidangScoreService;
 use App\Services\ThesisProjectAdminService;
 use App\Support\AcademicTerminology;
 use App\Support\Filament\BadgeStyles;
+use App\Support\SidangDocumentTemplate;
 use App\Support\WitaDateTime;
 use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
@@ -357,7 +358,7 @@ class ThesisProjectsTable
             ->recordActions([
                 Action::make('cetak_berkas_sidang')
                     ->label('Cetak / PDF')->icon('heroicon-m-printer')->iconButton()->tooltip('Cetak / PDF')->color('gray')
-                    ->visible(fn (ThesisProject $record): bool => self::canAccessSidangPaper($record))
+                    ->visible(fn (ThesisProject $record): bool => self::canPrintSidangPaper($record))
                     ->url(fn (ThesisProject $record): string => route('sidang.paper.preview', $record->latestSidangDefense))
                     ->openUrlInNewTab(),
                 Action::make('unduh_berkas_sidang')
@@ -365,7 +366,7 @@ class ThesisProjectsTable
                     ->icon('heroicon-m-arrow-down-tray')
                     ->iconButton()->tooltip('Unduh Word')
                     ->color('gray')
-                    ->visible(fn (ThesisProject $record): bool => self::canAccessSidangPaper($record))
+                    ->visible(fn (ThesisProject $record): bool => self::canPrintSidangPaper($record))
                     ->url(fn (ThesisProject $record): string => route('sidang.paper.download', $record->latestSidangDefense)),
                 Action::make('tindakan_berkas_sidang')
                     ->label(fn (ThesisProject $record): string => match (self::sidangPaperActionStatus($record)) {
@@ -513,6 +514,12 @@ class ThesisProjectsTable
         return $defense->status === 'scheduled' && ! app(SidangScoreService::class)->hasPaperPanel($defense)
             ? null
             : $defense->status;
+    }
+
+    private static function canPrintSidangPaper(ThesisProject $record): bool
+    {
+        return self::canAccessSidangPaper($record)
+            && SidangDocumentTemplate::forProgram($record->programStudi) !== null;
     }
 
     private static function canAccessSidangPaper(ThesisProject $record): bool

@@ -21,6 +21,7 @@ use App\Services\ThesisProjectNoteService;
 use App\Services\ThesisRevisionRoundService;
 use App\Support\AcademicTerminology;
 use App\Support\DefenseRevisionLog;
+use App\Support\SidangDocumentTemplate;
 use App\Support\ThesisRevisionPayload;
 use App\Support\WitaDateTime;
 use Illuminate\Http\RedirectResponse;
@@ -96,6 +97,10 @@ class SeminarProposalController extends Controller
                 && (int) $thread->context_id === (int) $defense->id
                 && (int) $thread->student_user_id === (int) $student?->id);
             $privateThread = $privateThreads->first(fn (MentorshipChatThread $thread): bool => $thread->participants->contains('user_id', $student?->id));
+            $canPrint = $defense?->type === 'sidang'
+                && $defense->scheduled_for !== null
+                && $defense->status !== 'cancelled'
+                && SidangDocumentTemplate::forProgram($project?->programStudi) !== null;
 
             return [
                 'defenseId' => $defense?->id,
@@ -115,9 +120,9 @@ class SeminarProposalController extends Controller
                 'defenseResult' => $defense?->result,
                 'paperScore' => $summary['value'] ?? null,
                 'paperGrade' => $summary['grade'] ?? null,
-                'paperUrl' => $defense?->type === 'sidang' && $defense->scheduled_for !== null && $defense->status !== 'cancelled'
+                'paperUrl' => $canPrint
                     ? route('sidang.paper.download', $defense) : null,
-                'paperPrintUrl' => $defense?->type === 'sidang' && $defense->scheduled_for !== null && $defense->status !== 'cancelled'
+                'paperPrintUrl' => $canPrint
                     ? route('sidang.paper.preview', $defense) : null,
                 'scheduledFor' => WitaDateTime::formatOrNull($defense?->scheduled_for),
                 'scheduledAt' => $defense?->scheduled_for?->toIso8601String(),
