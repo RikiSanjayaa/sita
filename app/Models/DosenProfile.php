@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -49,6 +50,13 @@ class DosenProfile extends Model
     public function programStudi(): BelongsTo
     {
         return $this->belongsTo(ProgramStudi::class, 'program_studi_id');
+    }
+
+    protected function sidangNidn(): Attribute
+    {
+        return Attribute::make(
+            set: static fn (?string $value): ?string => filled($value = trim($value ?? '')) ? $value : null,
+        );
     }
 
     public function programStudiAssignments(): HasMany

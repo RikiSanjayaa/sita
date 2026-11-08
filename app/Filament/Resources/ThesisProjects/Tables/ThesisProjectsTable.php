@@ -353,6 +353,7 @@ class ThesisProjectsTable
                         }),
                 ]),
             ])
+            ->recordActionsAlignment($isSidangTab ? 'start' : null)
             ->recordActions([
                 Action::make('cetak_berkas_sidang')
                     ->label('Cetak / PDF')->icon('heroicon-m-printer')->iconButton()->tooltip('Cetak / PDF')->color('gray')

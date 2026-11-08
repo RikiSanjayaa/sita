@@ -10,6 +10,7 @@ use App\Services\ThesisProjectImportService;
 use App\Support\AcademicTerminology;
 use App\Support\Filament\SidangReportDatePicker;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
@@ -45,40 +46,46 @@ class ListThesisProjects extends ListRecords
         $periodService = app(SidangReportPeriodService::class);
 
         return [
-            ...($actor !== null && ($superAdmin || $programId !== null)
-                ? [ManageSidangReportPeriod::make($actor)->visible(fn (): bool => $this->activeTab === self::SIDANG_PAPER_TAB)] : []),
-            Action::make('exportSidangReport')
-                ->label('Ekspor Rekap Nilai')
-                ->icon('heroicon-m-arrow-down-tray')
-                ->color('gray')
-                ->modalHeading('Rekap Nilai Sidang')
-                ->modalDescription('Memuat sidang lulus yang sudah final dengan tiga nilai lengkap, sesuai filter tabel dan tanggal sidang WITA.')
-                ->modalSubmitActionLabel('Unduh Excel')
-                ->modalCancelActionLabel('Batal')
-                ->modalContentFooter(fn () => view('filament.thesis-projects.sidang-report-download'))
-                ->schema([
-                    Select::make('period_id')->label('Periode rekap')->placeholder('Rentang tanggal manual')
-                        ->options(fn (): array => $periodService->periods($programId)->mapWithKeys(fn (SidangReportPeriod $period): array => [
-                            $period->id => $period->label().' ('.$period->starts_on->format('d/m/Y').' - '.$period->ends_on->format('d/m/Y').')'
-                                .($superAdmin ? ' - '.$period->programStudi->name : ''),
-                        ])->all())
-                        ->default(fn (): ?int => $programId === null ? null : $periodService->activeId($periodService->periods($programId)))
-                        ->live(),
-                    SidangReportDatePicker::make('from')->label('Dari tanggal')->visible(fn (Get $get): bool => blank($get('period_id')))->required()->live(),
-                    SidangReportDatePicker::make('until')->label('Sampai tanggal')->visible(fn (Get $get): bool => blank($get('period_id')))
-                        ->defaultFocusedDate(fn (Get $get): ?string => $get('from'))->required()->afterOrEqual('from'),
-                    TextInput::make('period')->label('Nama periode')->visible(fn (Get $get): bool => blank($get('period_id')))
-                        ->maxLength(80)->helperText('Contoh: Ganjil 2026/2027'),
-                ])
-                ->action(function (array $data, Action $action): void {
-                    $query = $this->getTableQueryForExport()->reorder()->select('thesis_projects.id')->toBase();
-                    $token = (string) Str::uuid();
-                    Cache::store('database')->put('sidang-export:'.$token, [
-                        'user' => Auth::id(), 'sql' => $query->toSql(), 'bindings' => $query->getBindings(),
-                    ], now()->addMinutes(5));
-                    $this->dispatch('sidang-report-download', url: route('sidang.report', [...$data, 'selection' => $token]));
-                    $action->halt();
-                }),
+            ActionGroup::make([
+                ...($actor !== null && ($superAdmin || $programId !== null)
+                    ? [ManageSidangReportPeriod::make($actor)] : []),
+                Action::make('exportSidangReport')
+                    ->label('Ekspor Rekap Nilai')
+                    ->icon('heroicon-m-arrow-down-tray')
+                    ->color('gray')
+                    ->modalHeading('Rekap Nilai Sidang')
+                    ->modalDescription('Memuat sidang lulus yang sudah final dengan tiga nilai lengkap, sesuai filter tabel dan tanggal sidang WITA.')
+                    ->modalSubmitActionLabel('Unduh Excel')
+                    ->modalSubmitAction(fn (Action $action): Action => $action->extraAttributes([
+                        'x-bind:disabled' => 'Boolean($store.sidangReport?.busy)',
+                        'x-bind:aria-busy' => 'Boolean($store.sidangReport?.busy)',
+                    ]))
+                    ->modalCancelActionLabel('Batal')
+                    ->modalContentFooter(fn () => view('filament.thesis-projects.sidang-report-download'))
+                    ->schema([
+                        Select::make('period_id')->label('Periode rekap')->placeholder('Rentang tanggal manual')
+                            ->options(fn (): array => $periodService->periods($programId)->mapWithKeys(fn (SidangReportPeriod $period): array => [
+                                $period->id => $period->label().' ('.$period->starts_on->format('d/m/Y').' - '.$period->ends_on->format('d/m/Y').')'
+                                    .($superAdmin ? ' - '.$period->programStudi->name : ''),
+                            ])->all())
+                            ->default(fn (): ?int => $programId === null ? null : $periodService->activeId($periodService->periods($programId)))
+                            ->live(),
+                        SidangReportDatePicker::make('from')->label('Dari tanggal')->visible(fn (Get $get): bool => blank($get('period_id')))->required()->live(),
+                        SidangReportDatePicker::make('until')->label('Sampai tanggal')->visible(fn (Get $get): bool => blank($get('period_id')))
+                            ->defaultFocusedDate(fn (Get $get): ?string => $get('from'))->required()->afterOrEqual('from'),
+                        TextInput::make('period')->label('Nama periode')->visible(fn (Get $get): bool => blank($get('period_id')))
+                            ->maxLength(80)->helperText('Contoh: Ganjil 2026/2027'),
+                    ])
+                    ->action(function (array $data, Action $action): void {
+                        $query = $this->getTableQueryForExport()->reorder()->select('thesis_projects.id')->toBase();
+                        $token = (string) Str::uuid();
+                        Cache::store('database')->put('sidang-export:'.$token, [
+                            'user' => Auth::id(), 'sql' => $query->toSql(), 'bindings' => $query->getBindings(),
+                        ], now()->addMinutes(5));
+                        $this->dispatch('sidang-report-download', url: route('sidang.report', [...$data, 'selection' => $token]));
+                        $action->halt();
+                    }),
+            ])->label('Rekap')->icon('heroicon-m-table-cells')->button()->color('gray'),
             Action::make('downloadThesisImportTemplate')
                 ->label('Download Template')
                 ->icon('heroicon-m-arrow-down-tray')

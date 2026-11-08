@@ -3,6 +3,7 @@ import {
     test,
     type Locator,
     type Page,
+    type Route,
     type TestInfo,
 } from '@playwright/test';
 
@@ -26,6 +27,55 @@ async function pickAdminReportDate(form: Locator, label: string, date: string) {
     await calendar.getByRole('spinbutton').fill(year);
     await calendar.locator(`[role="gridcell"][data-date="${date}"]`).click();
     await expect(calendar).toBeHidden();
+}
+
+async function openAdminRekap(page: Page, action: string): Promise<void> {
+    await page.getByRole('button', { name: 'Rekap', exact: true }).click();
+    await page.getByRole('menuitem', { name: action, exact: true }).click();
+}
+
+async function downloadWithBusyEvidence(
+    page: Page,
+    dialog: Locator,
+    info: TestInfo,
+    label: string,
+): Promise<void> {
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+        release = resolve;
+    });
+    let requests = 0;
+    const handler = async (route: Route) => {
+        requests++;
+        await gate;
+        await route.continue();
+    };
+    await page.route('**/rekap-nilai-sidang**', handler);
+    const downloaded = page.waitForEvent('download');
+    try {
+        const button = dialog.getByRole('button', {
+            name: 'Unduh Excel',
+            exact: true,
+        });
+        await button.click();
+        await expect(button).toBeDisabled();
+        await expect(
+            dialog
+                .getByRole('status')
+                .filter({ hasText: 'Menyiapkan file Excel...' }),
+        ).toBeVisible();
+        await captureReport(page, info, label);
+        expect(requests).toBe(1);
+    } finally {
+        release();
+    }
+    try {
+        expect((await downloaded).suggestedFilename()).toBe(
+            'rekap-nilai-sidang.xlsx',
+        );
+    } finally {
+        await page.unroute('**/rekap-nilai-sidang**', handler);
+    }
 }
 
 test.beforeEach(() => seedPlaywrightScenarios());
@@ -263,10 +313,11 @@ test('kaprodi opens the scheduled packet and downloads a filtered report', async
     await range.click();
     await dialog.locator('[data-day="2026-11-01"] button').click();
     await range.click();
-    const downloaded = page.waitForEvent('download');
-    await dialog.getByRole('button', { name: 'Unduh Excel' }).click();
-    expect((await downloaded).suggestedFilename()).toBe(
-        'rekap-nilai-sidang.xlsx',
+    await downloadWithBusyEvidence(
+        page,
+        dialog,
+        testInfo,
+        'kaprodi-rekap-proses',
     );
     await expect(dialog.getByText('Unduhan Excel dimulai.')).toBeVisible();
     await captureReport(page, testInfo, 'kaprodi-rekap-berhasil');
@@ -344,7 +395,7 @@ test('admin saves an editable semester suggestion and reuses it for Excel', asyn
     try {
         const page = await admin.newPage();
         await page.goto('/admin/thesis-projects?tab=berkas-sidang');
-        await page.getByRole('button', { name: 'Atur Periode Rekap' }).click();
+        await openAdminRekap(page, 'Atur Periode Rekap');
         const form = page.locator('.fi-modal-window:visible').last();
         await form.getByRole('combobox', { name: /^Tanggal awal/ }).click();
         await expect(
@@ -389,7 +440,7 @@ test('admin saves an editable semester suggestion and reuses it for Excel', asyn
         await form.getByRole('button', { name: 'Simpan Periode' }).click();
         await expect(form).toBeHidden();
 
-        await page.getByRole('button', { name: 'Ekspor Rekap Nilai' }).click();
+        await openAdminRekap(page, 'Ekspor Rekap Nilai');
         const period = form.getByLabel('Periode rekap', { exact: true });
         await period.selectOption({
             label: 'Semester Genap 2096/2097 (14/09/2096 - 14/10/2096)',
@@ -407,10 +458,11 @@ test('admin saves an editable semester suggestion and reuses it for Excel', asyn
         await period.selectOption('');
         await pickAdminReportDate(form, 'Dari tanggal', '2026-11-01');
         await pickAdminReportDate(form, 'Sampai tanggal', '2026-11-30');
-        const downloaded = page.waitForEvent('download');
-        await form.getByRole('button', { name: 'Unduh Excel' }).click();
-        expect((await downloaded).suggestedFilename()).toBe(
-            'rekap-nilai-sidang.xlsx',
+        await downloadWithBusyEvidence(
+            page,
+            form,
+            testInfo,
+            'admin-rekap-proses',
         );
         await expect(form.getByText('Unduhan Excel dimulai.')).toBeVisible();
         await captureReport(page, testInfo, 'admin-rekap-berhasil');
@@ -426,12 +478,23 @@ test('admin saves an editable semester suggestion and reuses it for Excel', asyn
                 .getByRole('button', { name: 'Rekap Nilai' })
                 .click();
             const dialog = kaprodiPage.getByRole('dialog');
-            await dialog.getByLabel('Periode rekap').selectOption({
-                label: 'Semester Genap 2096/2097 (14/09/2096 - 14/10/2096)',
-            });
+            await dialog
+                .getByRole('combobox', { name: 'Periode rekap' })
+                .click();
+            await kaprodiPage
+                .getByRole('option', {
+                    name: 'Semester Genap 2096/2097 (14/09/2096 - 14/10/2096)',
+                    exact: true,
+                })
+                .click();
             await expect(
                 dialog.getByRole('button', { name: /^Rentang tanggal sidang/ }),
             ).toBeHidden();
+            await captureReport(
+                kaprodiPage,
+                testInfo,
+                'kaprodi-periode-terpilih',
+            );
         } finally {
             await kaprodi.close();
         }
@@ -505,5 +568,102 @@ test('legacy panels can open the packet without a paper score shortcut', async (
         await captureReport(page, testInfo, 'kaprodi-panel-lama', true);
     } finally {
         await admin.close();
+    }
+});
+
+test('Admin and Kaprodi see the affected student when a legacy panel cannot yet be exported', async ({
+    browser,
+}, info) => {
+    finalizeDemoSidang();
+    // Represent a historical final record with one examiner and two supervisors.
+    runArtisan([
+        'tinker',
+        '--execute=' +
+            "$student = App\\Models\\User::where('email', 'e2e-sidang@sita.test')->firstOrFail(); " +
+            "$project = App\\Models\\ThesisProject::where('student_user_id', $student->id)->latest('id')->firstOrFail(); " +
+            "$project->latestSidangDefense->examiners()->where('role', 'examiner')->orderByDesc('order_no')->firstOrFail()->update(['role' => 'secondary_supervisor']);",
+    ]);
+    for (const role of ['admin', 'kaprodi'] as const) {
+        const context = await browser.newContext({
+            storageState: authStatePath(role),
+        });
+        try {
+            const page = await context.newPage();
+            await page.clock.setFixedTime(
+                new Date('2026-11-08T12:00:00+08:00'),
+            );
+            let downloads = 0;
+            page.on('download', () => downloads++);
+            if (role === 'admin') {
+                await page.goto('/admin/thesis-projects?tab=berkas-sidang');
+                await page
+                    .getByRole('searchbox', { name: 'Search', exact: true })
+                    .fill('Sinta Sidang Terjadwal');
+                await openAdminRekap(page, 'Ekspor Rekap Nilai');
+                const dialog = page.locator('.fi-modal-window:visible').last();
+                await dialog
+                    .getByLabel('Periode rekap', { exact: true })
+                    .selectOption('');
+                await pickAdminReportDate(dialog, 'Dari tanggal', '2026-11-01');
+                await pickAdminReportDate(
+                    dialog,
+                    'Sampai tanggal',
+                    '2026-11-30',
+                );
+                await dialog
+                    .getByRole('button', { name: 'Unduh Excel', exact: true })
+                    .click();
+                await expect(dialog.getByRole('alert')).toContainText(
+                    'Sinta Sidang Terjadwal',
+                );
+                await expect(dialog.getByRole('alert')).toContainText(
+                    'bobot perlu dikonfirmasi ke prodi',
+                );
+                await captureReport(page, info, 'admin-rekap-panel-lama');
+            } else {
+                await page.goto('/kaprodi/sempro-sidang');
+                await page
+                    .getByPlaceholder('Cari nama, NIM, judul, atau dosen...')
+                    .fill('Sinta Sidang Terjadwal');
+                await page.getByRole('button', { name: 'Rekap Nilai' }).click();
+                const dialog = page.getByRole('dialog');
+                if (
+                    await dialog
+                        .getByRole('combobox', { name: 'Periode rekap' })
+                        .isVisible()
+                ) {
+                    await dialog
+                        .getByRole('combobox', { name: 'Periode rekap' })
+                        .click();
+                    await page
+                        .getByRole('option', {
+                            name: 'Rentang tanggal manual',
+                            exact: true,
+                        })
+                        .click();
+                }
+                await dialog
+                    .getByRole('button', { name: /^Rentang tanggal sidang/ })
+                    .click();
+                await dialog.locator('[data-day="2026-11-01"] button').click();
+                await dialog.locator('[data-day="2026-11-30"] button').click();
+                await dialog
+                    .getByRole('button', { name: /^Rentang tanggal sidang/ })
+                    .click();
+                await dialog
+                    .getByRole('button', { name: 'Unduh Excel', exact: true })
+                    .click();
+                await expect(dialog.getByRole('alert')).toContainText(
+                    'Sinta Sidang Terjadwal',
+                );
+                await expect(dialog.getByRole('alert')).toContainText(
+                    'bobot perlu dikonfirmasi ke prodi',
+                );
+                await captureReport(page, info, 'kaprodi-rekap-panel-lama');
+            }
+            expect(downloads).toBe(0);
+        } finally {
+            await context.close();
+        }
     }
 });

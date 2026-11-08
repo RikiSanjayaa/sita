@@ -16,9 +16,15 @@
     <thead><tr><th>NO</th><th>UNSUR YANG DINILAI</th><th>NILAI</th><th>BOBOT</th><th>HASIL</th></tr></thead>
     <tbody>
         @foreach (\App\Support\SidangSettings::rubric($settings[$rubricKey]) as $row)
+            @php
+                $label = $default && $loop->first ? $row['label'].' '.$fields['finalWork'] : $row['label'];
+                if ($default && $loop->index === 2) {
+                    $label = $rubricKey === 'supervisor_rubric' ? 'Karya yang dibuat (Progam /alat)' : 'Karya yang dibuat';
+                }
+            @endphp
             <tr>
                 <td>{{ $loop->iteration }}.</td>
-                <td>{{ $row['label'] }}
+                <td>{{ $label }}
                     @if ($default && isset($details[$loop->index]))
                         <ul>@foreach ($details[$loop->index] as $detail)<li>{{ $detail }}</li>@endforeach</ul>
                     @endif

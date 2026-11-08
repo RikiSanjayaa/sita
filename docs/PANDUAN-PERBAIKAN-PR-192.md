@@ -27,6 +27,8 @@ Tes regresi tahap ini mencakup pengaturan 0/1/2/3, migrasi yang mempertahankan d
 | 4 | Halaman Admin, navigasi Kaprodi, dan perapian antarmuka | Form nilai memakai kontrak dari paket 2. Perapian mandiri bisa berjalan lebih awal |
 | 5 | Koreksi Word, pilihan template per prodi, dan cetak HTML/PDF | Koreksi teks bisa dikerjakan awal. Data nilai cetak memakai hasil paket 2 |
 
+Peta terbaru seluruh 13 percakapan, keputusan pemilik produk, dan langkah pemeriksaan bersama tersedia pada [Status Review PR #192](STATUS-REVIEW-PR-192.md). Review 8 November sudah menutup delapan percakapan pada `84158aa4`; lima sisanya tidak dianggap selesai hanya karena paket implementasi sudah ada.
+
 ## 2. Pengaturan prodi dan penjadwalan
 
 **File utama** — `app/Support/SidangSettings.php`, `app/Filament/Resources/ProgramStudis/Pages/EditProgramStudi.php`, `app/Services/ThesisProjectAdminService.php`, `app/Filament/Resources/ThesisProjects/Pages/ViewThesisProject.php`, `app/Services/KaprodiPortalService.php`, dan `resources/js/pages/kaprodi/sempro-sidang.tsx`.

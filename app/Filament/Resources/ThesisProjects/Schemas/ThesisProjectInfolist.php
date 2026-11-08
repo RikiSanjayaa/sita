@@ -560,7 +560,7 @@ class ThesisProjectInfolist
 
     private static function nextAdminStepLabel(ThesisProject $record): string
     {
-        if (in_array($record->state, ['completed', 'cancelled'], true)) {
+        if ($record->isArchived() || in_array($record->state, ['completed', 'cancelled'], true)) {
             return 'Monitoring Saja';
         }
 
@@ -584,7 +584,7 @@ class ThesisProjectInfolist
 
     private static function nextAdminStepColor(ThesisProject $record): string
     {
-        if (in_array($record->state, ['completed', 'cancelled'], true)) {
+        if ($record->isArchived() || in_array($record->state, ['completed', 'cancelled'], true)) {
             return 'gray';
         }
 
@@ -603,6 +603,19 @@ class ThesisProjectInfolist
     private static function workflowAttention(ThesisProject $record): string
     {
         $terms = AcademicTerminology::forProject($record);
+
+        if ($record->state === 'cancelled') {
+            return $terms['finalWork'].' dibatalkan. Data ini tersedia untuk melihat riwayat.';
+        }
+
+        if ($record->isArchived()) {
+            return $terms['finalWork'].' diarsipkan. Data ini tersedia untuk melihat riwayat.';
+        }
+
+        if ($record->state === 'completed') {
+            return $terms['finalWork'].' sudah selesai. Data ini tersedia untuk monitoring dan rekap hasil.';
+        }
+
         if ($record->open_revisions_count > 0) {
             return sprintf('%d revisi masih terbuka dan perlu ditindaklanjuti.', $record->open_revisions_count);
         }

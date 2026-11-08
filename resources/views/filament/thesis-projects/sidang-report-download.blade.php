@@ -1,8 +1,10 @@
 <div
     x-data="{ busy: false, error: '', status: '' }"
+    x-init="$store.sidangReport = { busy: false }"
     x-on:sidang-report-download.window="
         if (!busy) {
             busy = true;
+            $store.sidangReport.busy = true;
             error = '';
             status = 'Menyiapkan file Excel...';
             try {
@@ -27,6 +29,7 @@
                 status = '';
             } finally {
                 busy = false;
+                $store.sidangReport.busy = false;
             }
         }
     "

@@ -109,7 +109,7 @@ function studentRow(page: Page, name: string): Locator {
 
 test('populated dashboard shows headings, real counts, one featured item with at most one name, and compact secondary items', async ({
     page,
-}) => {
+}, testInfo) => {
     await withKaprodiDashboard(page, 'populated', async (fixture) => {
         await expect(page).toHaveTitle(/Dashboard Kaprodi/i);
         await expect(
@@ -163,6 +163,28 @@ test('populated dashboard shows headings, real counts, one featured item with at
             1,
         );
         expect(contextText).not.toContain(',');
+        for (const width of [1280, 390]) {
+            await page.setViewportSize({ width, height: 920 });
+            for (const theme of ['light', 'dark']) {
+                await page.evaluate(
+                    (mode) =>
+                        document.documentElement.classList.toggle(
+                            'dark',
+                            mode === 'dark',
+                        ),
+                    theme,
+                );
+                await expectNoOverflow(page);
+                await testInfo.attach(`kaprodi-ringkasan-${width}-${theme}`, {
+                    body: await page.screenshot({
+                        fullPage: true,
+                        animations: 'disabled',
+                    }),
+                    contentType: 'image/png',
+                });
+            }
+        }
+        await page.setViewportSize({ width: 1280, height: 920 });
 
         // Secondary items: label, count and action only. No names, context or descriptions.
         for (let index = 1; index < populatedQueue.length; index += 1) {

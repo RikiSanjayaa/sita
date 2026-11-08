@@ -146,6 +146,11 @@ Status tersebut berlaku untuk alur yang disebut pada barisnya, bukan seluruh cab
 
 ## Admin (Filament `/admin`) and super admin
 
+| Regresi PR #192 | Spec | Cakupan | Prioritas |
+| --- | --- | --- | --- |
+| NIDN sendiri bisa disimpan, NIDN dosen lain ditolak inline tanpa membuang draf; fokus completed/arsip/cancelled; menu Rekap stabil lintas tab dan posisi ikon cetak/Word sejajar pada tiga status | `admin-review-polish`, Pest `DosenNidnTest`, `ThesisProjectResourceTest` | tercakup | P1 |
+| Rekap Admin/Kaprodi: pilihan periode standar, rentang manual, proses menonaktifkan unduhan ganda, pesan kosong, sukses dan panel lama teridentifikasi tanpa unduhan parsial tersembunyi | `sidang-paper`, Pest `SidangPaperWorkflowTest` | tercakup | P1 |
+
 | Flow (menu / resource)                                                                                           | Spec                                                                                   | Status   | Priority |
 | ---------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | -------- | -------- |
 | Dashboard (`/admin`): "Perlu tindakan" dengan delapan kategori berurutan urgensi, jumlah nyata, satu nama pratinjau paling banyak (hanya kartu pertama; kartu sekunder tanpa nama), tombol ke daftar tugas akhir dengan filter `action_queue` tepat dan hanya mahasiswa kategori itu; ringkasan akademik dengan nilai statistik nyata (nol tetap tampil saat semua beres); agenda 7 hari datar tanpa tabel; "Semua beres". Admin prodi hanya melihat prodinya (nama prodi lain tidak muncul di dashboard maupun daftar). Fixture terisolasi: terisi, semua beres (issue #33) | `admin-dashboard`, Pest `AdminActionQueueTest` | tercakup | P2 |

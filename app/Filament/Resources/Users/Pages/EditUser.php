@@ -11,9 +11,12 @@ use Filament\Actions\DeleteAction;
 use Filament\Actions\ViewAction;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 
 class EditUser extends EditRecord
 {
+    protected ?bool $hasDatabaseTransactions = true;
+
     protected static string $resource = UserResource::class;
 
     protected array $provisioningData = [];
@@ -110,10 +113,12 @@ class EditUser extends EditRecord
         /** @var \App\Models\User $user */
         $user = $this->record;
 
-        app(UserProvisioningService::class)->syncRoleAndProfiles(
-            $user,
-            $this->provisioningData,
-        );
+        try {
+            app(UserProvisioningService::class)->syncRoleAndProfiles($user, $this->provisioningData);
+        } catch (ValidationException $exception) {
+            throw ValidationException::withMessages(collect($exception->errors())
+                ->mapWithKeys(fn (array $messages, string $field): array => ['data.'.$field => $messages])->all());
+        }
     }
 
     protected function getHeaderActions(): array

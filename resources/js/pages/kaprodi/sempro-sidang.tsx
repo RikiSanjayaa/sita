@@ -70,6 +70,13 @@ import {
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import {
     Sheet,
     SheetContent,
     SheetDescription,
@@ -919,30 +926,45 @@ export default function KaprodiSemproSidangPage() {
                             }
                         />
                         {reportPeriods.length > 0 && (
-                            <label className="block space-y-1 text-sm font-medium">
-                                Periode rekap
-                                <select
+                            <div className="space-y-1">
+                                <label
+                                    htmlFor="rekap-periode"
+                                    className="text-sm font-medium"
+                                >
+                                    Periode rekap
+                                </label>
+                                <input
+                                    type="hidden"
                                     name="period_id"
-                                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                                     value={reportPeriod}
+                                />
+                                <Select
+                                    value={reportPeriod || 'manual'}
                                     disabled={reportBusy}
-                                    onChange={(event) =>
-                                        setReportPeriod(event.target.value)
+                                    onValueChange={(value) =>
+                                        setReportPeriod(
+                                            value === 'manual' ? '' : value,
+                                        )
                                     }
                                 >
-                                    <option value="">
-                                        Rentang tanggal manual
-                                    </option>
-                                    {reportPeriods.map((period) => (
-                                        <option
-                                            key={period.id}
-                                            value={period.id}
-                                        >
-                                            {period.label} ({period.range})
-                                        </option>
-                                    ))}
-                                </select>
-                            </label>
+                                    <SelectTrigger id="rekap-periode">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="manual">
+                                            Rentang tanggal manual
+                                        </SelectItem>
+                                        {reportPeriods.map((period) => (
+                                            <SelectItem
+                                                key={period.id}
+                                                value={String(period.id)}
+                                            >
+                                                {period.label} ({period.range})
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         )}
                         {reportPeriod === '' && (
                             <>

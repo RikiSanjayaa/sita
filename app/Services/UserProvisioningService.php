@@ -4,17 +4,49 @@ namespace App\Services;
 
 use App\Enums\AppRole;
 use App\Enums\DegreeLevel;
+use App\Models\DosenProfile;
 use App\Models\DosenProgramStudiAssignment;
 use App\Models\ExpertiseField;
 use App\Models\ProgramStudi;
 use App\Models\Role;
 use App\Models\User;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class UserProvisioningService
 {
     public function syncRoleAndProfiles(User $user, array $data): void
+    {
+        $hasNidn = ($data['role'] ?? null) === AppRole::Dosen->value && array_key_exists('sidang_nidn', $data);
+
+        if ($hasNidn) {
+            $data['sidang_nidn'] = $this->nullableString($data['sidang_nidn']);
+            Validator::make($data, [
+                'sidang_nidn' => ['nullable', 'string', 'max:30', Rule::unique(DosenProfile::class, 'sidang_nidn')->ignore($user->dosenProfile?->id)],
+            ], ['sidang_nidn.unique' => 'NIDN sudah digunakan dosen lain. Periksa kembali NIDN.'])->validate();
+        }
+
+        try {
+            DB::transaction(fn () => $this->provision($user, $data));
+        } catch (UniqueConstraintViolationException $exception) {
+            if ($hasNidn && $data['sidang_nidn'] !== null && DosenProfile::query()
+                ->where('sidang_nidn', $data['sidang_nidn'])
+                ->where('user_id', '!=', $user->id)
+                ->exists()) {
+                throw ValidationException::withMessages([
+                    'sidang_nidn' => 'NIDN sudah digunakan dosen lain. Periksa kembali NIDN.',
+                ]);
+            }
+
+            throw $exception;
+        }
+    }
+
+    private function provision(User $user, array $data): void
     {
         $phoneNumber = $this->nullableString($data['phone_number'] ?? ($data['phone'] ?? null));
 

@@ -60,6 +60,33 @@ function sidangPaperFixture(?ProgramStudi $program = null): array
     return [$defense, $student, $program, $scores];
 }
 
+it('blocks a mixed report with an identified legacy panel instead of silently dropping its row', function (string $role): void {
+    [$supported, , $program, $scores] = sidangPaperFixture();
+    [$legacy, $student] = sidangPaperFixture($program);
+    $student->update(['name' => 'Mahasiswa Panel Lama']);
+    $legacy->examiners()->where('role', 'examiner')->orderByDesc('order_no')->firstOrFail()->update(['role' => 'secondary_supervisor']);
+    $legacy->examiners()->update(['score' => 80, 'decision' => 'pass']);
+    $legacy->update(['status' => 'completed', 'result' => 'pass']);
+    $legacy->project->update(['state' => 'completed', 'phase' => 'completed']);
+    $actor = $role === 'admin' ? User::factory()->asAdmin()->create() : User::factory()->asKaprodi()->create();
+    if ($role === 'admin') {
+        AdminProfile::factory()->create(['user_id' => $actor->id, 'program_studi_id' => $program->id]);
+    } else {
+        KaprodiAssignment::factory()->create(['user_id' => $actor->id, 'program_studi_id' => $program->id]);
+    }
+    $superAdmin = User::factory()->asSuperAdmin()->create();
+    app(SidangPaperService::class)->record($supported, $superAdmin, ['scores' => $scores]);
+    app(ThesisProjectAdminService::class)->completeSidang($supported->project, $superAdmin->id, 'pass', 'Final.');
+
+    $response = $this->actingAs($actor)->postJson(route('sidang.report'))->assertUnprocessable();
+    expect($response->json('message'))->toContain('1 sidang', 'Mahasiswa Panel Lama', $student->mahasiswaProfile->nim, 'profil perhitungan', 'bobot perlu dikonfirmasi')
+        ->and($response->headers->has('content-disposition'))->toBeFalse()
+        ->and($legacy->fresh()->examiners->pluck('score')->unique()->all())->toBe(['80.00']);
+    // An explicit selection may still download the supported row, preserving its final score.
+    $excel = sidangExcelContent($this->post(route('sidang.report'), ['ids' => (string) $supported->id])->assertOk());
+    expect(sidangReportSheet($excel))->toContain($supported->project->student->name)->not->toContain('Mahasiswa Panel Lama');
+})->with(['admin', 'kaprodi']);
+
 it('prints the faculty packet and every selected sheet with shared identity and escaped text', function (): void {
     [$defense, $student, $program] = sidangPaperFixture();
     $student->update(['name' => 'Nama <script>alert(1)</script>']);
@@ -72,7 +99,9 @@ it('prints the faculty packet and every selected sheet with shared identity and 
         ->assertSee('Nama &lt;script&gt;alert(1)&lt;/script&gt;', false)
         ->assertDontSee('<script>alert(1)</script>', false)
         ->assertSee('Jalan Uji 42')->assertSee('Kontak Prodi')->assertSee('prodi.example.test')
-        ->assertSee('Cetak / Simpan PDF')->assertSee('Unduh Word (.docx)');
+        ->assertSee('Cetak / Simpan PDF')->assertSee('Unduh Word (.docx)')
+        ->assertSee('Penguasaan Materi Skripsi')
+        ->assertSee('Karya yang dibuat (Progam /alat)');
     expect(preg_match_all('/<article\b[^>]*\bdata-form=/', $response->getContent()))->toBe(9);
     foreach (array_keys(\App\Http\Controllers\SidangPaperController::FORMS) as $form) {
         $sheet = $this->get(route('sidang.paper.preview', [$defense, 'lembar' => $form]))->assertOk();
@@ -843,7 +872,7 @@ it('saves editable semester periods by program and exports the selected WITA ran
 
     $data = ['starts_on' => '2026-11-04', 'ends_on' => '2026-11-04', 'semester' => 'genap', 'start_year' => 2026];
     $page = Livewire::test(ListThesisProjects::class)
-        ->assertActionHidden('manageSidangReportPeriod')
+        ->assertActionVisible('manageSidangReportPeriod')
         ->set('activeTab', ListThesisProjects::SIDANG_PAPER_TAB)
         ->assertActionVisible('manageSidangReportPeriod')
         ->mountAction('manageSidangReportPeriod');

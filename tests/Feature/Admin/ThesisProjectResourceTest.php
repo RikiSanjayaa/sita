@@ -23,6 +23,33 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
+it('shows lifecycle context before active workflow warnings in the admin focus', function (string $state, bool $archived, string $message): void {
+    $student = User::factory()->asMahasiswa()->create();
+    $project = ensureActiveThesisProject($student);
+    $project->update([
+        'phase' => $state === 'completed' ? 'completed' : 'research',
+        'state' => $state,
+        'archived_at' => $archived ? now() : null,
+    ]);
+    $this->actingAs(User::factory()->asSuperAdmin()->create());
+
+    Livewire::test(ViewThesisProject::class, ['record' => $project->getRouteKey()])
+        ->assertSeeText($message)
+        ->assertDontSeeText('Belum ada pembimbing aktif yang tercatat.')
+        ->assertSeeText('Monitoring Saja');
+})->with([
+    'completed' => ['completed', false, 'sudah selesai. Data ini tersedia untuk monitoring dan rekap hasil.'],
+    'archived' => ['completed', true, 'diarsipkan. Data ini tersedia untuk melihat riwayat.'],
+    'cancelled' => ['cancelled', false, 'dibatalkan. Data ini tersedia untuk melihat riwayat.'],
+]);
+
+it('still flags a missing active supervisor on an active project', function (): void {
+    $project = ensureActiveThesisProject(User::factory()->asMahasiswa()->create());
+    $this->actingAs(User::factory()->asSuperAdmin()->create());
+    Livewire::test(ViewThesisProject::class, ['record' => $project->getRouteKey()])
+        ->assertSeeText('Belum ada pembimbing aktif yang tercatat.');
+});
+
 test('admin can only see thesis projects from their prodi', function (): void {
     $prodiA = ProgramStudi::factory()->create(['name' => 'Ilmu Komputer']);
     $prodiB = ProgramStudi::factory()->create(['name' => 'Teknologi Informasi']);

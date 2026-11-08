@@ -38,9 +38,19 @@ final class SidangReportWriter
     {
         $template = SidangOfficeTemplate::readXml($zip, self::SHEET);
         $groups = [];
+        $unmappedCount = 0;
+        $unmappedExamples = [];
         foreach ($defenses as $defense) {
             $summary = app(SidangScoreService::class)->summary($defense);
             if ($summary === null) {
+                if (app(SidangScoreService::class)->panelIds($defense) === null) {
+                    $unmappedCount++;
+                    if (count($unmappedExamples) < 5) {
+                        $student = $defense->project->student;
+                        $unmappedExamples[] = sprintf('%s (NIM %s, Sidang #%d)', $student?->name ?? 'Mahasiswa', $student?->mahasiswaProfile?->nim ?? '-', $defense->attempt_no);
+                    }
+                }
+
                 continue;
             }
 
@@ -61,6 +71,12 @@ final class SidangReportWriter
             }
             $this->appendDefense($groups[$key], $template, $defense, $summary);
         }
+        abort_if($unmappedCount > 0, 422, sprintf(
+            'Rekap belum dibuat: %d sidang belum memiliki profil perhitungan yang sesuai dengan susunan panel. %s%s. Pemetaan peran dan bobot perlu dikonfirmasi ke prodi. Ubah pilihan data bila ingin mengekspor sidang lain; tidak ada mahasiswa yang dihilangkan diam-diam.',
+            $unmappedCount,
+            implode('; ', $unmappedExamples),
+            $unmappedCount > count($unmappedExamples) ? '; dan '.($unmappedCount - count($unmappedExamples)).' sidang lainnya' : '',
+        ));
         abort_if($groups === [], 422, self::EMPTY_MESSAGE);
         $workbook = SidangOfficeTemplate::readXml($zip, 'xl/workbook.xml');
         $relations = SidangOfficeTemplate::readXml($zip, 'xl/_rels/workbook.xml.rels');

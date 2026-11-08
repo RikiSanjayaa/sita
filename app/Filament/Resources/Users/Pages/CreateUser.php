@@ -5,9 +5,12 @@ namespace App\Filament\Resources\Users\Pages;
 use App\Filament\Resources\Users\UserResource;
 use App\Services\UserProvisioningService;
 use Filament\Resources\Pages\CreateRecord;
+use Illuminate\Validation\ValidationException;
 
 class CreateUser extends CreateRecord
 {
+    protected ?bool $hasDatabaseTransactions = true;
+
     protected static string $resource = UserResource::class;
 
     protected array $provisioningData = [];
@@ -54,9 +57,11 @@ class CreateUser extends CreateRecord
         /** @var \App\Models\User $user */
         $user = $this->record;
 
-        app(UserProvisioningService::class)->syncRoleAndProfiles(
-            $user,
-            $this->provisioningData,
-        );
+        try {
+            app(UserProvisioningService::class)->syncRoleAndProfiles($user, $this->provisioningData);
+        } catch (ValidationException $exception) {
+            throw ValidationException::withMessages(collect($exception->errors())
+                ->mapWithKeys(fn (array $messages, string $field): array => ['data.'.$field => $messages])->all());
+        }
     }
 }
