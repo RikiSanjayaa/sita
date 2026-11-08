@@ -55,6 +55,8 @@ Paket standar mempertahankan judul Seminar Skripsi dari contoh fakultas. Istilah
 
 Tabel rubrik standar memiliki `w:tblCaption` bernilai `sita:rubric:examiner` atau `sita:rubric:supervisor`. Baris pertama adalah header, baris kedua contoh baris lima kolom, dan baris terakhir total. Saat rubrik diubah, baris komponen diganti dengan label dan bobot pengaturan prodi. Kolom nilai komponen tetap kosong karena sistem menyimpan nilai total tiap dosen.
 
+Rentang nilai penguji memakai tabel dalam alur dokumen, dengan baris yang tetap utuh. Kelompok tanda tangan pada lembar catatan dan daftar hadir dipertahankan bersama. Isi kop, judul atau rubrik yang panjang dapat menambah halaman. Uji kembali tata letak setelah menyesuaikan format prodi, terutama bila struktur resmi prodi membutuhkan ruang berbeda dari contoh.
+
 ## Kontrak cetak HTML
 
 View menerima `$defense`, `$fields`, `$forms`, `$selectedForm` dan `$settings`. Gunakan escaping Blade untuk seluruh data pengguna. Tetapkan ukuran A4 melalui CSS `@page`, sembunyikan toolbar saat mencetak, dan uji paket serta lembar tunggal di browser. Pengguna mencetak melalui dialog browser dan memilih Simpan PDF. Logo standar diambil dari logo pada contoh Word.

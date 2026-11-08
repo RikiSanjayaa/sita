@@ -82,6 +82,12 @@ it('prints the faculty packet and every selected sheet with shared identity and 
         $xml = new DOMDocument;
         expect($xml->loadXML(sidangReportSheet($word, 'word/document.xml'), LIBXML_NONET))->toBeTrue();
         expect($xml->textContent)->toContain('Nama <script>alert(1)</script>')->not->toContain('tNO', '{{');
+        if ($form === 'nilai-penguji') {
+            $query = new DOMXPath($xml);
+            $query->registerNamespace('w', $xml->documentElement->namespaceURI);
+            expect($query->query('//w:txbxContent/w:tbl')->length)->toBe(0)
+                ->and($query->query('//w:trPr/w:cantSplit')->length)->toBeGreaterThan(0);
+        }
     }
     $this->get(route('sidang.paper.preview', [$defense, 'lembar' => ['berita-acara']]))->assertNotFound();
     $this->get(route('sidang.paper.preview', [$defense, 'lembar' => 'missing']))->assertNotFound();
