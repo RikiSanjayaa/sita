@@ -116,7 +116,9 @@ class SeminarProposalController extends Controller
                 'paperScore' => $summary['value'] ?? null,
                 'paperGrade' => $summary['grade'] ?? null,
                 'paperUrl' => $defense?->type === 'sidang' && $defense->scheduled_for !== null && $defense->status !== 'cancelled'
-                    ? route('sidang.paper.print', $defense) : null,
+                    ? route('sidang.paper.download', $defense) : null,
+                'paperPrintUrl' => $defense?->type === 'sidang' && $defense->scheduled_for !== null && $defense->status !== 'cancelled'
+                    ? route('sidang.paper.preview', $defense) : null,
                 'scheduledFor' => WitaDateTime::formatOrNull($defense?->scheduled_for),
                 'scheduledAt' => $defense?->scheduled_for?->toIso8601String(),
                 'location' => $defense?->location ?? '-',

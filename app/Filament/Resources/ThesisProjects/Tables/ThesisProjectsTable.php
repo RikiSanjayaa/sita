@@ -354,12 +354,18 @@ class ThesisProjectsTable
                 ]),
             ])
             ->recordActions([
+                Action::make('cetak_berkas_sidang')
+                    ->label('Cetak / PDF')->icon('heroicon-m-printer')->iconButton()->tooltip('Cetak / PDF')->color('gray')
+                    ->visible(fn (ThesisProject $record): bool => self::canAccessSidangPaper($record))
+                    ->url(fn (ThesisProject $record): string => route('sidang.paper.preview', $record->latestSidangDefense))
+                    ->openUrlInNewTab(),
                 Action::make('unduh_berkas_sidang')
                     ->label('Unduh Word')
                     ->icon('heroicon-m-arrow-down-tray')
+                    ->iconButton()->tooltip('Unduh Word')
                     ->color('gray')
                     ->visible(fn (ThesisProject $record): bool => self::canAccessSidangPaper($record))
-                    ->url(fn (ThesisProject $record): string => route('sidang.paper.print', $record->latestSidangDefense)),
+                    ->url(fn (ThesisProject $record): string => route('sidang.paper.download', $record->latestSidangDefense)),
                 Action::make('tindakan_berkas_sidang')
                     ->label(fn (ThesisProject $record): string => match (self::sidangPaperActionStatus($record)) {
                         'awaiting_finalization' => 'Tinjau & Finalisasi',

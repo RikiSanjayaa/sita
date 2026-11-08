@@ -67,6 +67,9 @@ async function captureReport(
             expect(
                 await page.evaluate(() => document.documentElement.scrollWidth),
             ).toBeLessThanOrEqual(width);
+            if (fullPage) {
+                await page.evaluate(() => window.scrollTo(0, 0));
+            }
             await testInfo.attach(`${label}-${width}-${theme}`, {
                 body: await page.screenshot({
                     animations: 'disabled',
@@ -77,6 +80,22 @@ async function captureReport(
         }
     }
     await page.setViewportSize({ width: 1280, height: 920 });
+}
+
+async function attachPrintedPdf(
+    page: Page,
+    testInfo: TestInfo,
+    name: string,
+    expectedPages: number,
+) {
+    const pdf = await page.pdf({
+        preferCSSPageSize: true,
+        printBackground: true,
+    });
+    // Chromium emits uncompressed page dictionaries. Catch orphaned print pages.
+    const pages = pdf.toString('latin1').match(/\/Type\s*\/Page\b/g) ?? [];
+    expect(pages.length, `${name} print page count`).toBe(expectedPages);
+    await testInfo.attach(name, { body: pdf, contentType: 'application/pdf' });
 }
 
 test('kaprodi opens the scheduled packet and downloads a filtered report', async ({
@@ -126,6 +145,7 @@ test('kaprodi opens the scheduled packet and downloads a filtered report', async
                     'dark',
                     mode === 'dark',
                 );
+                window.scrollTo(0, 0);
             }, theme);
             expect(
                 await page.evaluate(() => document.documentElement.scrollWidth),
@@ -138,12 +158,74 @@ test('kaprodi opens the scheduled packet and downloads a filtered report', async
     }
 
     const wordDownload = page.waitForEvent('download');
-    await page.getByRole('link', { name: 'Berita Acara', exact: true }).click();
+    await page
+        .getByRole('link', { name: 'Unduh Word Berita Acara', exact: true })
+        .click();
     expect((await wordDownload).suggestedFilename()).toMatch(
         /^berita-acara-\d+\.docx$/,
     );
+    const packetDownload = page.waitForEvent('download');
+    await page
+        .getByRole('link', { name: 'Unduh Paket Sidang (.docx)', exact: true })
+        .click();
+    const packetWord = await packetDownload;
+    const packetWordPath = testInfo.outputPath('paket-sidang.docx');
+    await packetWord.saveAs(packetWordPath);
+    await testInfo.attach('paket-sidang.docx', {
+        path: packetWordPath,
+        contentType:
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    });
+
+    const packetOpened = page.waitForEvent('popup');
+    await page
+        .getByRole('link', { name: 'Cetak / Simpan PDF', exact: true })
+        .click();
+    const packet = await packetOpened;
+    await expect(packet.locator('article.paper')).toHaveCount(9);
+    const packetUrl = packet.url();
+    await expect(packet.locator('.letterhead img').first()).toBeVisible();
+    await captureReport(packet, testInfo, 'cetak-paket');
+    await packet.evaluate(() => {
+        window.print = () =>
+            document.body.setAttribute('data-print-requested', 'true');
+    });
+    await packet.getByRole('button', { name: 'Cetak / Simpan PDF' }).click();
+    await expect(packet.locator('body')).toHaveAttribute(
+        'data-print-requested',
+        'true',
+    );
+    await attachPrintedPdf(packet, testInfo, 'paket-sidang.pdf', 9);
+    await packet.close();
+    for (const name of [
+        'Berita Acara',
+        'Catatan Perbaikan Penguji',
+        'Daftar Hadir',
+        'Formulir Penilaian Penguji',
+        'Formulir Penilaian Pembimbing',
+        'Lembar Total Penilaian',
+        'Masukan untuk Pembimbing',
+        'Pertanyaan dan Jawaban',
+        'Catatan Perbaikan Pembimbing',
+    ]) {
+        const opened = page.waitForEvent('popup');
+        await page
+            .getByRole('link', { name: `Cetak ${name}`, exact: true })
+            .click();
+        const sheet = await opened;
+        await expect(sheet.locator('article.paper')).toHaveCount(1);
+        await attachPrintedPdf(sheet, testInfo, `${name}.pdf`, 1);
+        await sheet.close();
+    }
 
     finalizeDemoSidang();
+    const finalPacket = await page.context().newPage();
+    await finalPacket.goto(packetUrl);
+    await expect(
+        finalPacket.locator('[data-form="rekap-nilai"]'),
+    ).toContainText('80');
+    await attachPrintedPdf(finalPacket, testInfo, 'paket-final.pdf', 9);
+    await finalPacket.close();
     await page.setViewportSize({ width: 1280, height: 920 });
     await page.clock.setFixedTime(new Date('2026-11-08T12:00:00+08:00'));
     await page.goto('/kaprodi/sempro-sidang');
@@ -188,6 +270,68 @@ test('kaprodi opens the scheduled packet and downloads a filtered report', async
     );
     await expect(dialog.getByText('Unduhan Excel dimulai.')).toBeVisible();
     await captureReport(page, testInfo, 'kaprodi-rekap-berhasil');
+});
+
+test('admin and panel lecturers can print through their own workspaces', async ({
+    browser,
+}, testInfo) => {
+    for (const role of ['admin', 'dosen3'] as const) {
+        const context = await browser.newContext({
+            storageState: authStatePath(role),
+        });
+        try {
+            const page = await context.newPage();
+            if (role === 'admin') {
+                await page.goto('/admin/thesis-projects?tab=berkas-sidang');
+                const row = page
+                    .getByRole('row')
+                    .filter({ hasText: 'Sinta Sidang Terjadwal' });
+                const inputScore = row.getByRole('link', {
+                    name: 'Input Nilai',
+                    exact: true,
+                });
+                const inputBounds = await inputScore.boundingBox();
+                expect(inputBounds).not.toBeNull();
+                expect(inputBounds!.x + inputBounds!.width).toBeLessThanOrEqual(
+                    page.viewportSize()!.width,
+                );
+                await captureReport(page, testInfo, 'admin-daftar-cetak');
+                await row
+                    .getByRole('link', { name: 'Input Nilai', exact: true })
+                    .click();
+            } else {
+                await page.goto('/dosen/seminar-proposal');
+                await page
+                    .getByRole('radio', { name: 'Sidang Akhir', exact: true })
+                    .click();
+                await page
+                    .getByPlaceholder(/Cari nama/i)
+                    .fill('Sinta Sidang Terjadwal');
+                const row = page
+                    .getByRole('row')
+                    .filter({ hasText: 'Sinta Sidang Terjadwal' })
+                    .filter({ hasText: /#1/ });
+                await row.locator('td').first().click();
+            }
+            const print = page.getByRole('link', {
+                name: 'Cetak / Simpan PDF',
+                exact: true,
+            });
+            await expect(print).toBeVisible();
+            await print.scrollIntoViewIfNeeded();
+            await captureReport(page, testInfo, `${role}-aksi-cetak`);
+            const opened = page.waitForEvent('popup');
+            await print.click();
+            const packet = await opened;
+            await expect(packet.locator('article.paper')).toHaveCount(9);
+            await expect(packet.locator('article.paper').first()).toContainText(
+                'Sinta Sidang Terjadwal',
+            );
+            await packet.close();
+        } finally {
+            await context.close();
+        }
+    }
 });
 
 test('admin saves an editable semester suggestion and reuses it for Excel', async ({

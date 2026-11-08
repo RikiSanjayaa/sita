@@ -99,8 +99,57 @@ test('program settings show validation errors and preserve the draft', async ({
             }
         }
         await rubric.fill(originalRubric);
+        await dialog
+            .getByLabel('Alamat pada kop', { exact: true })
+            .fill('Jalan Demo Prodi 42');
+        await dialog
+            .getByLabel('Kontak pada kop', { exact: true })
+            .fill('Kontak Demo Prodi');
+        await dialog
+            .getByLabel('Situs web pada kop', { exact: true })
+            .fill('prodi.example.test');
         await submit.click();
         await expect(dialog).toBeHidden();
+        await page
+            .getByRole('button', { name: 'Atur Dokumen dan Nilai Sidang' })
+            .click();
+        await expect(
+            dialog.getByLabel('Alamat pada kop', { exact: true }),
+        ).toHaveValue('Jalan Demo Prodi 42');
+        await expect(
+            dialog.getByLabel('Kontak pada kop', { exact: true }),
+        ).toHaveValue('Kontak Demo Prodi');
+        await expect(
+            dialog.getByLabel('Situs web pada kop', { exact: true }),
+        ).toHaveValue('prodi.example.test');
+        const template = dialog.getByText(
+            'Template standar - Format Fakultas Teknik',
+            { exact: true },
+        );
+        for (const width of [1280, 390]) {
+            await page.setViewportSize({ width, height: 920 });
+            for (const theme of ['light', 'dark']) {
+                await page.evaluate(
+                    (mode) =>
+                        document.documentElement.classList.toggle(
+                            'dark',
+                            mode === 'dark',
+                        ),
+                    theme,
+                );
+                await template.scrollIntoViewIfNeeded();
+                await expect(template).toBeVisible();
+                expect(
+                    await page.evaluate(
+                        () => document.documentElement.scrollWidth,
+                    ),
+                ).toBeLessThanOrEqual(width);
+                await testInfo.attach(`settings-template-${width}-${theme}`, {
+                    body: await page.screenshot(),
+                    contentType: 'image/png',
+                });
+            }
+        }
     } finally {
         const encoded = Buffer.from(JSON.stringify(original.settings)).toString(
             'base64',

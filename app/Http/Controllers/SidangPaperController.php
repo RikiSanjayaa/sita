@@ -10,6 +10,7 @@ use App\Services\SidangPaperService;
 use App\Services\SidangScoreService;
 use App\Services\SidangWordWriter;
 use App\Support\AcademicTerminology;
+use App\Support\SidangDocumentTemplate;
 use App\Support\SidangSettings;
 use App\Support\WitaDateTime;
 use Illuminate\Http\RedirectResponse;
@@ -49,7 +50,9 @@ class SidangPaperController extends Controller
                 'label' => $terms['finalExam'].' #'.$defense->attempt_no,
                 'status' => $defense->status,
                 'editable' => $scores->editable($defense),
-                'canPrint' => $defense->scheduled_for !== null && $defense->status !== 'cancelled',
+                'canPrint' => $defense->scheduled_for !== null && $defense->status !== 'cancelled'
+                    && SidangDocumentTemplate::forProgram($project->programStudi) !== null,
+                'templateDescription' => SidangDocumentTemplate::description($project->programStudi),
                 'name' => $project->student?->name,
                 'nim' => $project->student?->mahasiswaProfile?->nim,
                 'title' => $defense->titleVersion?->title_id,
@@ -124,6 +127,7 @@ class SidangPaperController extends Controller
             'project.programStudi.kaprodiAssignments.user.dosenProfile', 'titleVersion',
             'examiners.lecturer.dosenProfile', 'moderator', 'revisions.items',
         );
+        abort_if(SidangDocumentTemplate::forProgram($defense->project->programStudi) === null, 422, 'Template dokumen prodi belum tersedia. Hubungi Admin prodi.');
 
         return response()->streamDownload(
             fn () => $writer->write($defense, $form),

@@ -3,10 +3,9 @@
 namespace App\Services;
 
 use App\Models\ThesisDefense;
-use App\Support\AcademicTerminology;
+use App\Support\SidangDocumentTemplate;
 use App\Support\SidangOfficeTemplate;
 use App\Support\SidangSettings;
-use App\Support\WitaDateTime;
 use DOMComment;
 use DOMDocument;
 use DOMElement;
@@ -17,7 +16,9 @@ final class SidangWordWriter
 {
     public function write(ThesisDefense $defense, ?string $form): void
     {
-        SidangOfficeTemplate::stream('berkas-sidang.docx', function (ZipArchive $zip) use ($defense, $form): void {
+        $template = SidangDocumentTemplate::forProgram($defense->project->programStudi);
+        abort_if($template === null, 422, 'Template dokumen prodi belum tersedia. Hubungi Admin prodi.');
+        SidangOfficeTemplate::stream($template['word'], function (ZipArchive $zip) use ($defense, $form): void {
             $entry = 'word/document.xml';
             $xml = SidangOfficeTemplate::readXml($zip, $entry);
             $word = $xml->documentElement->namespaceURI;
@@ -47,15 +48,68 @@ final class SidangWordWriter
                     }
                 }
             }
-            $fields = $this->fields($defense);
+            $fields = app(SidangPaperPresenter::class)->fields($defense);
+            $settings = app(SidangScoreService::class)->summary($defense)['settings'] ?? SidangSettings::forProgram($defense->project->programStudi);
+            $this->fillRubrics($xml, $settings);
             $this->fillFields($xml, $fields);
             SidangOfficeTemplate::saveXml($zip, $entry, $xml);
 
-            $headerEntry = 'word/header1.xml';
-            $header = SidangOfficeTemplate::readXml($zip, $headerEntry);
-            $this->fillFields($header, $fields);
-            SidangOfficeTemplate::saveXml($zip, $headerEntry, $header);
+            for ($index = 0; $index < $zip->numFiles; $index++) {
+                $entry = $zip->getNameIndex($index);
+                if (is_string($entry) && preg_match('/^word\/(header|footer)\d+\.xml$/', $entry)) {
+                    $part = SidangOfficeTemplate::readXml($zip, $entry);
+                    $this->fillFields($part, $fields);
+                    SidangOfficeTemplate::saveXml($zip, $entry, $part);
+                }
+            }
         });
+    }
+
+    private function fillRubrics(DOMDocument $xml, array $settings): void
+    {
+        $namespace = $xml->documentElement->namespaceURI;
+        $query = new DOMXPath($xml);
+        $query->registerNamespace('w', $namespace);
+        foreach (['examiner', 'supervisor'] as $role) {
+            $key = $role.'_rubric';
+            if ($settings[$key] === SidangSettings::DEFAULTS[$key]) {
+                continue;
+            }
+            $table = $query->query('//w:tbl[w:tblPr/w:tblCaption[@w:val="sita:rubric:'.$role.'"]]')->item(0);
+            if ($table === null) {
+                continue;
+            }
+            $rows = iterator_to_array($query->query('./w:tr', $table));
+            $prototype = $rows[1];
+            $total = $rows[count($rows) - 1];
+            foreach (array_slice($rows, 1, -1) as $row) {
+                $table->removeChild($row);
+            }
+            foreach (SidangSettings::rubric($settings[$key]) as $index => $component) {
+                $row = $prototype->cloneNode(true);
+                foreach ([($index + 1).'.', $component['label'], '', $component['weight'].' %', ''] as $column => $text) {
+                    $cell = $query->query('./w:tc', $row)->item($column);
+                    foreach (iterator_to_array($cell->childNodes) as $child) {
+                        if ($child->localName !== 'tcPr') {
+                            $cell->removeChild($child);
+                        }
+                    }
+                    $paragraph = $xml->createElementNS($namespace, 'w:p');
+                    $run = $xml->createElementNS($namespace, 'w:r');
+                    $sourceCell = $query->query('./w:tc', $prototype)->item($column);
+                    $properties = $query->query('.//w:rPr', $sourceCell)->item(0);
+                    if ($properties !== null) {
+                        $run->appendChild($properties->cloneNode(true));
+                    }
+                    $node = $xml->createElementNS($namespace, 'w:t');
+                    $node->appendChild($xml->createTextNode($text));
+                    $run->appendChild($node);
+                    $paragraph->appendChild($run);
+                    $cell->appendChild($paragraph);
+                }
+                $table->insertBefore($row, $total);
+            }
+        }
     }
 
     private function fillFields(DOMDocument $xml, array $fields): void
@@ -67,63 +121,5 @@ final class SidangWordWriter
                 $run->setAttributeNS('http://www.w3.org/XML/1998/namespace', 'xml:space', 'preserve');
             }
         }
-    }
-
-    private function fields(ThesisDefense $defense): array
-    {
-        $project = $defense->project;
-        $program = $project->programStudi;
-        $terms = AcademicTerminology::forProject($project);
-        $currentSettings = SidangSettings::forProgram($program);
-        $summary = app(SidangScoreService::class)->summary($defense);
-        $settings = $summary['settings'] ?? $currentSettings;
-        $faculty = $program?->faculty;
-        $programName = trim($terms['degreeLevel'].' '.$program?->name);
-        $panel = $defense->examiners->sortBy('order_no');
-        $examiners = $panel->where('role', 'examiner')->values();
-        $panelIds = app(SidangScoreService::class)->panelIds($defense);
-        $head = $program?->kaprodiAssignments->firstWhere('is_primary', true)?->user;
-        $nim = (string) $project->student?->mahasiswaProfile?->nim;
-        $complete = $defense->status === 'completed';
-        $fields = [
-            'student' => (string) $project->student?->name, 'nim' => $nim,
-            'title' => (string) $defense->titleVersion?->title_id,
-            'program' => $programName,
-            'letterheadInstitution' => mb_strtoupper($currentSettings['heading']),
-            'letterheadFaculty' => $faculty?->is_placeholder ? '' : mb_strtoupper($faculty?->name ?? ''),
-            'letterheadProgram' => $program === null ? '' : 'PROGRAM STUDI '.mb_strtoupper($programName),
-            'letterheadContact' => $faculty?->code === 'FT'
-                ? 'Telp (0370) 638369 | Whatsapp 0859-3615-9726 | Email ftd@universitasbumigora.ac.id' : '',
-            'schedule' => WitaDateTime::translatedDateRange($defense->scheduled_for, $defense->scheduled_until).' / '.$defense->location,
-            'placeDate' => $settings['city'].', '.WitaDateTime::translated($defense->scheduled_for, 'd F Y', withLabel: false),
-            'supervisor1' => (string) $panel->firstWhere('role', 'primary_supervisor')?->lecturer?->name,
-            'supervisor2' => (string) $panel->firstWhere('role', 'secondary_supervisor')?->lecturer?->name,
-            'examiner1' => (string) ($panelIds === null ? $examiners->get(0) : $panel->find($panelIds['examiner_1']))?->lecturer?->name,
-            'examiner2' => (string) ($panelIds === null ? $examiners->get(1) : $panel->find($panelIds['examiner_2']))?->lecturer?->name,
-            'moderator' => (string) $defense->moderator?->name,
-            'head' => (string) $head?->name, 'headNik' => (string) $head?->dosenProfile?->nik,
-            'pass' => ! $complete || in_array($defense->result, ['pass', 'pass_with_revision'], true) ? 'LULUS' : '',
-            'fail' => ! $complete || $defense->result === 'fail' ? 'TIDAK LULUS' : '',
-            'total' => $complete ? (string) ($summary['value'] ?? '') : '',
-        ];
-        for ($index = 0; $index < 10; $index++) {
-            $fields['nim'.($index + 1)] = $index === 9 ? substr($nim, $index) : ($nim[$index] ?? '');
-        }
-        foreach (['examiner_1' => 'examiner1', 'examiner_2' => 'examiner2', 'supervisor' => 'supervisor'] as $role => $key) {
-            $value = $complete ? ($summary['scores'][$role]['value'] ?? null) : null;
-            $fields[$key.'Weight'] = $settings[$role].' %';
-            $fields[$key.'Score'] = (string) $value;
-            $fields[$key.'Weighted'] = $value === null ? '' : (string) ($value * $settings[$role] / 100);
-        }
-        $supervisors = $panel->filter(fn ($member) => $member->isSupervisorRole())->pluck('lecturer_user_id');
-        if ($complete) {
-            foreach ($defense->revisions as $revision) {
-                $key = $supervisors->contains($revision->requested_by_user_id) ? 'supervisorNotes' : 'examinerNotes';
-                $notes = $revision->items->pluck('description')->prepend($revision->notes)->filter()->implode(' ');
-                $fields[$key] = trim(($fields[$key] ?? '').' '.$notes);
-            }
-        }
-
-        return $fields;
     }
 }

@@ -934,6 +934,11 @@ test.describe('Golden path: from title proposal to graduation', () => {
                     .click();
                 await expect(
                     kaprodiPage.getByRole('link', {
+                        name: 'Cetak / Simpan PDF',
+                    }),
+                ).toBeVisible();
+                await expect(
+                    kaprodiPage.getByRole('link', {
                         name: 'Unduh Paket Sidang (.docx)',
                     }),
                 ).toBeVisible();

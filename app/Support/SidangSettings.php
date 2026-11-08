@@ -8,6 +8,8 @@ use Illuminate\Validation\ValidationException;
 
 final class SidangSettings
 {
+    public const FT_CONTACT = 'Telp (0370) 638369 | Whatsapp 0859-3615-9726 | Email ftd@universitasbumigora.ac.id';
+
     public static function minimumPaperExaminers(?ProgramStudi $program): int
     {
         return (int) ($program?->sidang_settings['minimum_paper_examiners'] ?? 0);
@@ -22,6 +24,9 @@ final class SidangSettings
         'examiner_1' => 30, 'examiner_2' => 30, 'supervisor' => 40,
         'a' => 81, 'b_plus' => 71, 'b' => 66, 'c_plus' => 61, 'c' => 50, 'd' => 30,
         'city' => 'Mataram', 'heading' => 'Universitas Bumigora',
+        'letterhead_address' => 'Jl. Ismail Marzuki No. 22, Cakranegara, Mataram',
+        'letterhead_website' => 'www.universitasbumigora.ac.id',
+        'letterhead_contact' => null,
         'dean_name' => '', 'dean_nik' => '', 'staff_name' => '', 'staff_nik' => '',
         'examiner_rubric' => "Penguasaan Materi | 25\nDaya Nalar | 20\nKarya yang Dibuat | 25\nKajian Pustaka | 10\nKesesuaian Rancangan dengan Implementasi | 10\nSimpulan dan Saran | 5\nPresentasi | 5",
         'supervisor_rubric' => "Penguasaan Materi | 25\nDaya Nalar | 25\nKarya yang Dibuat | 25\nKemampuan Menulis Ilmiah | 15\nKeaktifan | 10",
@@ -29,7 +34,15 @@ final class SidangSettings
 
     public static function forProgram(?ProgramStudi $program): array
     {
-        return array_replace(self::DEFAULTS, array_filter($program?->sidang_settings ?? [], fn ($value) => $value !== null));
+        $saved = $program?->sidang_settings ?? [];
+        $settings = array_replace(self::DEFAULTS, array_filter($saved, fn ($value) => $value !== null));
+        foreach (['letterhead_address', 'letterhead_contact', 'letterhead_website'] as $field) {
+            if (array_key_exists($field, $saved)) {
+                $settings[$field] = (string) $saved[$field];
+            }
+        }
+
+        return $settings;
     }
 
     public static function validate(array $settings): void

@@ -9,6 +9,7 @@ use App\Models\ProgramStudi;
 use App\Models\User;
 use App\Policies\SidangPaperPolicy;
 use App\Services\KaprodiAssignmentService;
+use App\Support\SidangDocumentTemplate;
 use App\Support\SidangSettings;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
@@ -20,6 +21,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
+use Filament\Schemas\Components\Text;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rules\Password;
@@ -40,8 +42,13 @@ class EditProgramStudi extends EditRecord
                 ->modalCancelActionLabel('Batal')
                 ->fillForm(fn (): array => ['sidang_settings' => SidangSettings::forProgram($this->record)])
                 ->schema(fn (Schema $schema): Schema => $schema->columns(2)->components([
+                    Text::make(fn (): string => SidangDocumentTemplate::description($this->record))->columnSpanFull(),
                     TextInput::make('sidang_settings.heading')->label('Nama institusi pada kop')->required()->maxLength(100),
                     TextInput::make('sidang_settings.city')->label('Kota pengesahan')->required()->maxLength(80),
+                    TextInput::make('sidang_settings.letterhead_address')->label('Alamat pada kop')->maxLength(200)->columnSpanFull(),
+                    TextInput::make('sidang_settings.letterhead_contact')->label('Kontak pada kop')->maxLength(250)->columnSpanFull()
+                        ->formatStateUsing(fn (?string $state): string => $state ?? ($this->record->faculty?->code === 'FT' ? SidangSettings::FT_CONTACT : '')),
+                    TextInput::make('sidang_settings.letterhead_website')->label('Situs web pada kop')->maxLength(150)->columnSpanFull(),
                     TextInput::make('sidang_settings.dean_name')->label('Nama dekan')->maxLength(120),
                     TextInput::make('sidang_settings.dean_nik')->label('NIK dekan')->maxLength(30),
                     TextInput::make('sidang_settings.staff_name')->label('Nama staf prodi')->maxLength(120),

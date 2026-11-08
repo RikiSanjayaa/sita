@@ -101,6 +101,14 @@ OpenSpout 4.32 membuat workbook baru. Uji ekspor dasar tidak membawa area cetak 
 
 ## 6. Word, template per prodi, dan cetak PDF
 
+### Penerapan tahap kelima
+
+Pemilihan format ada di `config/sidang-templates.php`, dengan pasangan DOCX dan view Blade per slug prodi. Template contoh tetap menjadi baseline semua prodi sesuai arahan pemilik produk. Admin melihat status Template standar, Template khusus atau Template belum tersedia. Kontrak placeholder dan lembar dijelaskan di `resources/templates/sidang/README.md`.
+
+`SidangPaperPresenter` menyediakan isi yang sama untuk Word dan cetak HTML A4. Jadwal memuat hari Indonesia dan waktu mulai sampai selesai dalam WITA. Alamat, kontak dan situs kop dapat diatur per prodi. Rubrik khusus mengisi komponen pada kedua format. Nilai dan bobot final memakai snapshot yang sudah disimpan. Judul Seminar Skripsi serta pilihan penanda tangan 1 / 2 dipertahankan dari contoh fakultas.
+
+Admin, Kaprodi dan anggota panel Dosen memperoleh opsi Cetak / Simpan PDF dan unduhan Word. Paket dan setiap lembar memakai pemeriksaan akses yang sama. Format Sempro/Sinopsis masih dilacak dalam #17.
+
 **File utama** — `app/Services/SidangWordWriter.php`, `app/Http/Controllers/SidangPaperController.php`, `app/Support/WitaDateTime.php`, `app/Support/AcademicTerminology.php`, `resources/templates/sidang/`, dan `routes/web.php`.
 
 - Perbaiki Word yang sudah ada. Tambahkan nama hari Indonesia pada jadwal tunggal maupun rentang dalam WITA. Perbaiki `tNO` menjadi `NO`. Cocokkan judul **Seminar Skripsi** dengan berkas resmi sebelum menggantinya memakai jenis ujian dan terminologi jenjang. Periksa tulisan `Penguji 1 / 2` dan `Pembimbing 1 / 2` pada lembar yang memakai satu penanda tangan. Isi peran atau nama yang tepat jika lembar memang untuk satu orang. Pertahankan pilihan umum bila format resmi meminta petugas menandai salah satu. Periksa alamat, kontak, situs web, dan penyebutan institusi dalam rubrik. Gunakan nilai resmi yang berlaku untuk prodi/fakultas atau konfigurasi yang telah disetujui. Kop nama fakultas dan prodi yang sudah bekerja menjadi regresi wajib.

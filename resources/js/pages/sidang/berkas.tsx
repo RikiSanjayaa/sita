@@ -1,5 +1,5 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowLeft, Printer } from 'lucide-react';
+import { ArrowLeft, Download, Printer } from 'lucide-react';
 import { useRef, useState } from 'react';
 
 import { PageHeader } from '@/components/patterns/page-header';
@@ -18,7 +18,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import KaprodiLayout from '@/layouts/kaprodi-layout';
 import { neutralAcademicTerminology } from '@/lib/academic-terminology';
-import { print, store } from '@/routes/sidang/paper';
+import {
+    download,
+    preview as printPreview,
+    store,
+} from '@/routes/sidang/paper';
 
 const roles = {
     examiner_1: 'Penguji 1',
@@ -50,6 +54,7 @@ interface Props {
         status: string;
         editable: boolean;
         canPrint: boolean;
+        templateDescription: string;
         name: string;
         nim: string | null;
         title: string | null;
@@ -163,7 +168,7 @@ export default function BerkasSidang({
         new Intl.NumberFormat('id-ID', { maximumFractionDigits: 4 }).format(
             value,
         );
-    const printUrl = print(defense.id).url;
+    const printUrl = printPreview(defense.id).url;
     const storeUrl = store(defense.id, {
         query: returnFilters,
     }).url;
@@ -205,34 +210,77 @@ export default function BerkasSidang({
             </SectionCard>
             <SectionCard
                 title="Paket cetak"
-                description="Identitas dan jadwal terisi dari SiTA. Unduh paket lengkap atau satu lembar, lalu buka dan cetak di Word."
+                description="Identitas dan jadwal terisi dari SiTA. Cetak paket lengkap atau satu lembar, atau unduh Word untuk diedit."
             >
+                <p className="mb-3 text-sm text-muted-foreground">
+                    {defense.templateDescription}
+                </p>
                 {defense.canPrint ? (
                     <div className="space-y-3">
-                        <Button asChild>
-                            <a href={printUrl}>
-                                <Printer aria-hidden /> Unduh Paket Sidang
-                                (.docx)
-                            </a>
-                        </Button>
-                        <ul className="grid gap-1 sm:grid-cols-2">
+                        <div className="flex flex-wrap gap-2">
+                            <Button asChild className="max-md:min-h-11">
+                                <a
+                                    href={printUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    <Printer aria-hidden /> Cetak / Simpan PDF
+                                </a>
+                            </Button>
+                            <Button
+                                asChild
+                                variant="outline"
+                                className="max-md:min-h-11"
+                            >
+                                <a href={download(defense.id).url}>
+                                    <Download aria-hidden /> Unduh Paket Sidang
+                                    (.docx)
+                                </a>
+                            </Button>
+                        </div>
+                        <ul className="grid gap-3 sm:grid-cols-2">
                             {Object.entries(forms).map(([key, name]) => (
-                                <li key={key}>
-                                    <Button
-                                        asChild
-                                        variant="link"
-                                        className="h-auto min-h-9 justify-start px-0 text-left whitespace-normal"
-                                    >
-                                        <a
-                                            href={
-                                                print(defense.id, {
-                                                    query: { lembar: key },
-                                                }).url
-                                            }
+                                <li key={key} className="space-y-1">
+                                    <p className="text-sm font-medium">
+                                        {name}
+                                    </p>
+                                    <div className="flex gap-3">
+                                        <Button
+                                            asChild
+                                            variant="link"
+                                            className="px-0 max-md:min-h-11"
                                         >
-                                            {name}
-                                        </a>
-                                    </Button>
+                                            <a
+                                                href={
+                                                    printPreview(defense.id, {
+                                                        query: { lembar: key },
+                                                    }).url
+                                                }
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                aria-label={`Cetak ${name}`}
+                                            >
+                                                <Printer aria-hidden /> Cetak /
+                                                PDF
+                                            </a>
+                                        </Button>
+                                        <Button
+                                            asChild
+                                            variant="link"
+                                            className="px-0 max-md:min-h-11"
+                                        >
+                                            <a
+                                                href={
+                                                    download(defense.id, {
+                                                        query: { lembar: key },
+                                                    }).url
+                                                }
+                                                aria-label={`Unduh Word ${name}`}
+                                            >
+                                                <Download aria-hidden /> Word
+                                            </a>
+                                        </Button>
+                                    </div>
                                 </li>
                             ))}
                         </ul>

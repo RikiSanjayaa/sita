@@ -13,12 +13,14 @@ use App\Models\MahasiswaProfile;
 use App\Models\ProgramStudi;
 use App\Models\SidangReportPeriod;
 use App\Models\User;
+use App\Services\SidangPaperPresenter;
 use App\Services\SidangPaperService;
 use App\Services\SidangReportPeriodService;
 use App\Services\SidangReportWriter;
 use App\Services\SidangScoreService;
 use App\Services\ThesisDefenseExaminerDecisionService;
 use App\Services\ThesisProjectAdminService;
+use App\Support\SidangDocumentTemplate;
 use App\Support\SidangSettings;
 use Database\Seeders\AcademicStructureSeeder;
 use Illuminate\Support\Facades\Cache;
@@ -57,6 +59,140 @@ function sidangPaperFixture(?ProgramStudi $program = null): array
 
     return [$defense, $student, $program, $scores];
 }
+
+it('prints the faculty packet and every selected sheet with shared identity and escaped text', function (): void {
+    [$defense, $student, $program] = sidangPaperFixture();
+    $student->update(['name' => 'Nama <script>alert(1)</script>']);
+    $program->update(['sidang_settings' => ['letterhead_address' => 'Jalan Uji 42', 'letterhead_contact' => 'Kontak Prodi', 'letterhead_website' => 'prodi.example.test']]);
+    $defense->update(['scheduled_for' => '2026-11-05 07:30:00', 'scheduled_until' => '2026-11-05 09:00:00']);
+    $this->actingAs(User::factory()->asSuperAdmin()->create());
+
+    $response = $this->get(route('sidang.paper.preview', $defense))->assertOk()
+        ->assertSee('Kamis, 05 November 2026 / 07.30 - 09.00 WITA')
+        ->assertSee('Nama &lt;script&gt;alert(1)&lt;/script&gt;', false)
+        ->assertDontSee('<script>alert(1)</script>', false)
+        ->assertSee('Jalan Uji 42')->assertSee('Kontak Prodi')->assertSee('prodi.example.test')
+        ->assertSee('Cetak / Simpan PDF')->assertSee('Unduh Word (.docx)');
+    expect(preg_match_all('/<article\b[^>]*\bdata-form=/', $response->getContent()))->toBe(9);
+    foreach (array_keys(\App\Http\Controllers\SidangPaperController::FORMS) as $form) {
+        $sheet = $this->get(route('sidang.paper.preview', [$defense, 'lembar' => $form]))->assertOk();
+        expect(preg_match_all('/<article\b[^>]*\bdata-form=/', $sheet->getContent()))->toBe(1);
+        $sheet->assertSee('data-form="'.$form.'"', false);
+        $word = $this->get(route('sidang.paper.download', [$defense, 'lembar' => $form]))->assertOk()->streamedContent();
+        $xml = new DOMDocument;
+        expect($xml->loadXML(sidangReportSheet($word, 'word/document.xml'), LIBXML_NONET))->toBeTrue();
+        expect($xml->textContent)->toContain('Nama <script>alert(1)</script>')->not->toContain('tNO', '{{');
+    }
+    $this->get(route('sidang.paper.preview', [$defense, 'lembar' => ['berita-acara']]))->assertNotFound();
+    $this->get(route('sidang.paper.preview', [$defense, 'lembar' => 'missing']))->assertNotFound();
+});
+
+it('uses the same print policy for staff and panel members and rejects other programs', function (): void {
+    [$defense, $student, $program] = sidangPaperFixture();
+    [$foreign] = sidangPaperFixture();
+    $head = User::factory()->asKaprodi()->create();
+    KaprodiAssignment::factory()->create(['program_studi_id' => $program->id, 'user_id' => $head->id]);
+    $admin = User::factory()->asAdmin()->create();
+    AdminProfile::query()->create(['user_id' => $admin->id, 'program_studi_id' => $program->id]);
+    foreach ([$head, $admin] as $actor) {
+        $this->actingAs($actor)->get(route('sidang.paper.preview', $defense))->assertOk();
+        $this->get(route('sidang.paper.preview', $foreign))->assertForbidden();
+    }
+    $panel = $defense->examiners()->firstOrFail()->lecturer;
+    $this->actingAs($panel)->get(route('sidang.paper.preview', $defense))->assertOk();
+    $this->actingAs($student)->get(route('sidang.paper.preview', $defense))->assertForbidden();
+    $this->actingAs(User::factory()->asDosen()->create())->get(route('sidang.paper.preview', $defense))->assertForbidden();
+    $this->actingAs($admin);
+    $defense->update(['status' => 'cancelled']);
+    $this->get(route('sidang.paper.preview', $defense))->assertNotFound();
+    $defense->update(['status' => 'scheduled', 'scheduled_for' => null]);
+    $this->get(route('sidang.paper.preview', $defense))->assertNotFound();
+});
+
+it('uses final score snapshots for print and Word and leaves scheduled results unfilled', function (): void {
+    [$defense, , $program, $scores] = sidangPaperFixture();
+    $actor = User::factory()->asSuperAdmin()->create();
+    $this->actingAs($actor);
+    $presenter = app(SidangPaperPresenter::class);
+    expect($presenter->fields($defense))->toMatchArray(['total' => '', 'examiner1Score' => '', 'pass' => 'LULUS', 'fail' => 'TIDAK LULUS']);
+    app(SidangPaperService::class)->record($defense->fresh(), $actor, ['scores' => $scores]);
+    app(ThesisProjectAdminService::class)->completeSidang($defense->project, $actor->id, 'pass_with_revision', 'Hasil sidang.', 'Perbaiki pembahasan.', '2026-12-01 12:00:00');
+    $fields = $presenter->fields($defense->fresh());
+    expect($fields)->toMatchArray(['total' => '80', 'examiner1Score' => '90', 'pass' => 'LULUS', 'fail' => '']);
+    $program->update(['sidang_settings' => ['examiner_1' => 20, 'examiner_2' => 20, 'supervisor' => 60]]);
+    expect($presenter->fields($defense->fresh()))->toMatchArray(['total' => '80', 'examiner1Weight' => '30 %']);
+    $this->get(route('sidang.paper.preview', [$defense, 'lembar' => 'rekap-nilai']))->assertOk()->assertSee('<td>80</td>', false);
+    $defense->update(['result' => 'fail']);
+    expect($presenter->fields($defense->fresh()))->toMatchArray(['pass' => '', 'fail' => 'TIDAK LULUS']);
+});
+
+it('selects repository templates by program and reports missing templates without falling back silently', function (): void {
+    [$defense, , $program] = sidangPaperFixture();
+    $this->actingAs(User::factory()->asSuperAdmin()->create());
+    expect(SidangDocumentTemplate::description($program))->toBe('Template standar - Format Fakultas Teknik');
+    $template = 'test-'.Str::uuid().'.docx';
+    $path = resource_path('templates/sidang/'.$template);
+    try {
+        copy(resource_path('templates/sidang/berkas-sidang.docx'), $path);
+        $zip = new ZipArchive;
+        $zip->open($path);
+        $zip->addFromString('word/document.xml', str_replace('BERITA ACARA', 'BERITA ACARA KHUSUS PRODI', $zip->getFromName('word/document.xml')));
+        $zip->close();
+        view()->addNamespace('sidang-test', base_path('tests/fixtures/views'));
+        config(['sidang-templates.programs' => [$program->slug => ['label' => 'Dokumen Prodi Uji', 'word' => $template, 'view' => 'sidang-test::sidang-custom']]]);
+        expect(SidangDocumentTemplate::description($program))->toBe('Template khusus - Dokumen Prodi Uji');
+        $word = $this->get(route('sidang.paper.download', $defense))->assertOk()->streamedContent();
+        $download = tempnam(sys_get_temp_dir(), 'sita-custom-test');
+        try {
+            file_put_contents($download, $word);
+            $zip->open($download);
+            expect($zip->getFromName('word/document.xml'))->toContain('BERITA ACARA KHUSUS PRODI');
+            $zip->close();
+        } finally {
+            unlink($download);
+        }
+        $this->get(route('sidang.paper.preview', $defense))->assertOk()->assertSee('Template khusus prodi uji');
+        config(['sidang-templates.programs' => [$program->slug => null]]);
+        expect(SidangDocumentTemplate::description($program))->toBe('Template belum tersedia');
+        $this->get(route('sidang.paper.preview', $defense))->assertUnprocessable();
+        $this->get(route('sidang.paper.download', $defense))->assertUnprocessable();
+    } finally {
+        unlink($path);
+    }
+});
+
+it('prints customized rubric rows and letterhead fields in both document formats', function (): void {
+    $program = ProgramStudi::factory()->create(['sidang_settings' => [
+        'examiner_rubric' => "Analisis & Hasil | 60\nPenyampaian | 40",
+        'letterhead_address' => 'Jalan Fakultas Uji', 'letterhead_contact' => '',
+    ]]);
+    [$defense] = sidangPaperFixture($program);
+    $this->actingAs(User::factory()->asSuperAdmin()->create());
+    $this->get(route('sidang.paper.preview', [$defense, 'lembar' => 'nilai-penguji']))->assertOk()
+        ->assertSee('Analisis &amp; Hasil', false)->assertSee('60 %')->assertSee('Jalan Fakultas Uji');
+    $word = $this->get(route('sidang.paper.download', [$defense, 'lembar' => 'nilai-penguji']))->assertOk()->streamedContent();
+    $path = tempnam(sys_get_temp_dir(), 'sita-rubric-test');
+    try {
+        file_put_contents($path, $word);
+        $zip = new ZipArchive;
+        $zip->open($path);
+        expect($zip->getFromName('word/document.xml'))->toContain('Analisis &amp; Hasil')->toContain('60 %');
+        expect($zip->getFromName('word/header1.xml'))->toContain('Jalan Fakultas Uji');
+        $zip->close();
+    } finally {
+        unlink($path);
+    }
+});
+
+it('prints degree terminology and both dates for an overnight WITA schedule', function (): void {
+    [$defense, $student] = sidangPaperFixture();
+    $student->mahasiswaProfile->update(['degree_level' => 'd3']);
+    $defense->update(['scheduled_for' => '2026-11-05 23:30:00', 'scheduled_until' => '2026-11-06 01:00:00']);
+    $this->actingAs(User::factory()->asSuperAdmin()->create());
+    $this->get(route('sidang.paper.preview', [$defense, 'lembar' => 'berita-acara']))
+        ->assertOk()->assertSee('UJIAN SEMINAR TUGAS AKHIR')
+        ->assertSee('Kamis, 05 November 2026 / 23.30 - Jumat, 06 November 2026 / 01.00 WITA');
+});
 
 it('limits the native paper page to the selected project and the admin program', function (): void {
     [$defense, $student, $program] = sidangPaperFixture();
@@ -279,7 +415,8 @@ it('lists only accessible latest sidang records and shows the shortcut for each 
         ->set('activeTab', ListThesisProjects::SIDANG_PAPER_TAB)
         ->assertCanSeeTableRecords([$scheduled->project, $completed->project], inOrder: true)
         ->assertCanNotSeeTableRecords([$cancelled->project, $foreign->project])
-        ->assertTableActionHasUrl('unduh_berkas_sidang', route('sidang.paper.print', $scheduled), $scheduled->project)
+        ->assertTableActionHasUrl('unduh_berkas_sidang', route('sidang.paper.download', $scheduled), $scheduled->project)
+        ->assertTableActionHasUrl('cetak_berkas_sidang', route('sidang.paper.preview', $scheduled), $scheduled->project)
         ->assertTableActionHasLabel('tindakan_berkas_sidang', 'Input Nilai', $scheduled->project)
         ->assertTableActionHasUrl('tindakan_berkas_sidang', ThesisProjectResource::getUrl('sidang-paper', ['record' => $scheduled->project, 'defense' => $scheduled, 'dari' => 'daftar']).'#nilai-dari-berkas', $scheduled->project)
         ->assertTableActionHasLabel('tindakan_berkas_sidang', 'Lihat Berkas', $completed->project);
@@ -310,7 +447,7 @@ it('offers print and digital finalization without a paper score shortcut for a l
     Livewire::test(ListThesisProjects::class)->set('activeTab', ListThesisProjects::SIDANG_PAPER_TAB)
         ->assertTableActionHasLabel('tindakan_berkas_sidang', 'Lihat Berkas', $defense->project)
         ->assertTableActionHasUrl('tindakan_berkas_sidang', $url, $defense->project)
-        ->assertTableActionHasUrl('unduh_berkas_sidang', route('sidang.paper.print', $defense), $defense->project);
+        ->assertTableActionHasUrl('unduh_berkas_sidang', route('sidang.paper.download', $defense), $defense->project);
     $this->get($url)->assertOk()->assertSee(SidangScoreService::PAPER_PANEL_HINT)->assertDontSee('Nilai penguji 2');
 
     $defense->update(['status' => 'awaiting_finalization']);

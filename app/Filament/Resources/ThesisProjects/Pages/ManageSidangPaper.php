@@ -10,6 +10,7 @@ use App\Policies\SidangPaperPolicy;
 use App\Services\SidangPaperService;
 use App\Services\SidangScoreService;
 use App\Support\AcademicTerminology;
+use App\Support\SidangDocumentTemplate;
 use App\Support\SidangSettings;
 use App\Support\WitaDateTime;
 use Filament\Actions\Action;
@@ -104,12 +105,14 @@ class ManageSidangPaper extends Page
         return [
             Action::make('back')->label('Kembali')->color('gray')->icon('heroicon-m-arrow-left')
                 ->url($this->fromQueue ? $this->getResourceUrl('index', ['tab' => ListThesisProjects::SIDANG_PAPER_TAB]) : $this->getResourceUrl('view')),
-            Action::make('print')->label('Unduh Paket Sidang (.docx)')->icon('heroicon-m-printer')
-                ->url(route('sidang.paper.print', $this->defenseId))->disabled(! $this->canPrint()),
+            Action::make('preview')->label('Cetak / Simpan PDF')->icon('heroicon-m-printer')
+                ->url(route('sidang.paper.preview', $this->defenseId))->openUrlInNewTab()->disabled(! $this->canPrint()),
+            Action::make('print')->label('Unduh Paket Sidang (.docx)')->icon('heroicon-m-arrow-down-tray')->color('gray')
+                ->url(route('sidang.paper.download', $this->defenseId))->disabled(! $this->canPrint()),
             ActionGroup::make(array_map(fn (string $key, string $label): Action => Action::make('print_'.$key)
-                ->label($label)->url(route('sidang.paper.print', ['defense' => $this->defenseId, 'lembar' => $key]))
+                ->label($label)->url(route('sidang.paper.preview', ['defense' => $this->defenseId, 'lembar' => $key]))->openUrlInNewTab()
                 ->disabled(! $this->canPrint()), array_keys(SidangPaperController::FORMS), array_values(SidangPaperController::FORMS)))
-                ->label('Unduh per lembar')->button()->color('gray'),
+                ->label('Cetak per lembar')->button()->color('gray'),
         ];
     }
 
@@ -120,6 +123,7 @@ class ManageSidangPaper extends Page
                 TextEntry::make('title')->label('Judul')->state($this->defense->titleVersion?->title_id ?? '-')->columnSpanFull(),
                 TextEntry::make('schedule')->label('Jadwal')->state(WitaDateTime::format($this->defense->scheduled_for)),
                 TextEntry::make('location')->label('Lokasi')->state($this->defense->location ?? '-'),
+                TextEntry::make('template')->label('Template dokumen')->state(SidangDocumentTemplate::description($this->defense->project->programStudi))->columnSpanFull(),
                 TextEntry::make('status')->label('Status')->state(fn (): string => match ($this->defense->status) {
                     'scheduled' => 'Terjadwal', 'awaiting_finalization' => 'Menunggu finalisasi',
                     'completed' => 'Selesai', 'cancelled' => 'Dibatalkan', default => 'Belum terjadwal',
@@ -280,7 +284,8 @@ class ManageSidangPaper extends Page
 
     protected function canPrint(): bool
     {
-        return $this->defense->scheduled_for !== null && $this->defense->status !== 'cancelled';
+        return $this->defense->scheduled_for !== null && $this->defense->status !== 'cancelled'
+            && SidangDocumentTemplate::forProgram($this->defense->project->programStudi) !== null;
     }
 
     protected function canEnterScores(): bool

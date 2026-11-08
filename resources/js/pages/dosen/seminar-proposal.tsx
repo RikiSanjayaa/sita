@@ -7,6 +7,7 @@ import {
     ExternalLink,
     FileWarning,
     MessageSquare,
+    Printer,
     Send,
     XCircle,
 } from 'lucide-react';
@@ -132,6 +133,7 @@ type DefenseItem = {
     paperScore: number | null;
     paperGrade: string | null;
     paperUrl: string | null;
+    paperPrintUrl: string | null;
     scheduledFor: string | null;
     /** ISO 8601, for sorting; scheduledFor is the Indonesian display text. */
     scheduledAt: string | null;
@@ -884,6 +886,25 @@ function DefenseDetailSheet({
                                     {item.chatLabel}
                                 </Link>
                             </Button>
+                            {item.paperUrl && (
+                                <Button
+                                    asChild
+                                    size="sm"
+                                    className="max-md:h-11"
+                                >
+                                    <a
+                                        href={item.paperPrintUrl ?? undefined}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                    >
+                                        <Printer
+                                            aria-hidden="true"
+                                            className="size-4"
+                                        />
+                                        Cetak / Simpan PDF
+                                    </a>
+                                </Button>
+                            )}
                             {item.paperUrl && (
                                 <Button
                                     asChild
