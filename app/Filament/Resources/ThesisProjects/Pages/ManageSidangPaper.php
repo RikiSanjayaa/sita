@@ -175,8 +175,8 @@ class ManageSidangPaper extends Page
             Section::make('Nilai dari berkas')
                 ->description($this->canEnterScores()
                     ? 'Masukkan nilai total pada lembar masing-masing dosen. Nilai yang sudah tercatat ditampilkan otomatis.'
-                    : 'Input dari berkas membutuhkan dua penguji dan minimal satu pembimbing pada panel. Periksa susunan panel pada jadwal sidang.')
-                ->schema($fields)->footerActions([
+                    : SidangScoreService::PAPER_PANEL_HINT)
+                ->schema($this->canEnterScores() ? $fields : [])->footerActions([
                     $this->saveScoresAction(),
                     Action::make('finalize')->label('Finalisasi Sidang')->color('gray')
                         ->url($this->getResourceUrl('view', ['action' => 'complete_sidang']))
@@ -199,7 +199,8 @@ class ManageSidangPaper extends Page
     public function saveScoresAction(): Action
     {
         return Action::make('saveScores')->label(fn (): string => $this->defense->status === 'awaiting_finalization' ? 'Simpan Koreksi / Pencocokan' : 'Simpan untuk Finalisasi')
-            ->disabled(! $this->editable() || ! $this->canEnterScores())
+            ->visible(fn (): bool => $this->canEnterScores())
+            ->disabled(! $this->editable())
             ->requiresConfirmation()->modalHeading('Konfirmasi nilai dari berkas')
             ->modalSubmitActionLabel('Konfirmasi Simpan Nilai')->modalCancelActionLabel('Batal')
             ->mountUsing(fn () => $this->scoreForm->getState())
@@ -284,7 +285,6 @@ class ManageSidangPaper extends Page
 
     protected function canEnterScores(): bool
     {
-        return $this->defense->examiners->where('role', 'examiner')->count() >= 2
-            && $this->defense->examiners->contains(fn (ThesisDefenseExaminer $member): bool => $member->isSupervisorRole());
+        return app(SidangScoreService::class)->hasPaperPanel($this->defense);
     }
 }

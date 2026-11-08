@@ -68,6 +68,7 @@ class SidangPaperController extends Controller
                     'verifiedAt' => WitaDateTime::formatOrNull($examiner->paper_verified_at),
                 ]),
                 'panelIds' => $scores->panelIds($defense),
+                'paperPanelHint' => $scores->hasPaperPanel($defense) ? null : SidangScoreService::PAPER_PANEL_HINT,
                 'summary' => $summary === null ? null : ['value' => $summary['value'], 'grade' => $summary['grade']],
             ],
             'weights' => array_intersect_key(SidangSettings::forProgram($project->programStudi), SidangPaperService::ROLES),

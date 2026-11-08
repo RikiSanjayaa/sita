@@ -331,10 +331,16 @@ export default function KaprodiSemproSidangPage() {
     const [reportPeriod, setReportPeriod] = useState(
         activeReportPeriodId === null ? '' : String(activeReportPeriodId),
     );
+    const [reportDates, setReportDates] = useState({ from: '', to: '' });
 
     async function downloadReport(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
         if (reportBusy) return;
+        if (reportPeriod === '' && !reportDates.from) {
+            setReportStatus('');
+            setReportError('Pilih rentang tanggal sidang.');
+            return;
+        }
         const body = new FormData(event.currentTarget);
         setReportBusy(true);
         setReportError('');
@@ -940,27 +946,28 @@ export default function KaprodiSemproSidangPage() {
                         )}
                         {reportPeriod === '' && (
                             <>
-                                <div className="grid gap-3 sm:grid-cols-2">
-                                    <label className="space-y-1 text-sm font-medium">
-                                        Dari tanggal
-                                        <Input
-                                            type="date"
-                                            name="from"
-                                            className="text-foreground [color-scheme:light] dark:[color-scheme:dark]"
-                                            disabled={reportBusy}
-                                            required
-                                        />
-                                    </label>
-                                    <label className="space-y-1 text-sm font-medium">
-                                        Sampai tanggal
-                                        <Input
-                                            type="date"
-                                            name="until"
-                                            className="text-foreground [color-scheme:light] dark:[color-scheme:dark]"
-                                            disabled={reportBusy}
-                                            required
-                                        />
-                                    </label>
+                                <input
+                                    type="hidden"
+                                    name="from"
+                                    value={reportDates.from}
+                                />
+                                <input
+                                    type="hidden"
+                                    name="until"
+                                    value={reportDates.to}
+                                />
+                                <div className="space-y-1">
+                                    <span className="text-sm font-medium">
+                                        Rentang tanggal sidang
+                                    </span>
+                                    <DateRangePicker
+                                        ariaLabel="Rentang tanggal sidang"
+                                        numberOfMonths={1}
+                                        startDate={reportDates.from}
+                                        endDate={reportDates.to}
+                                        onChange={setReportDates}
+                                        disabled={reportBusy}
+                                    />
                                 </div>
                                 <label className="block space-y-1 text-sm font-medium">
                                     Nama periode

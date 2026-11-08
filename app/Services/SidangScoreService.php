@@ -13,6 +13,15 @@ use Illuminate\Validation\ValidationException;
 
 final class SidangScoreService
 {
+    public const PAPER_PANEL_HINT = 'Input nilai dari berkas membutuhkan dua penguji dan minimal satu pembimbing pada panel. Panel lain tetap mengikuti alur penilaian Dosen.';
+
+    public function hasPaperPanel(ThesisDefense $defense): bool
+    {
+        return $defense->type === 'sidang'
+            && $defense->examiners->where('role', 'examiner')->count() >= 2
+            && $defense->examiners->contains(fn (ThesisDefenseExaminer $member): bool => $member->isSupervisorRole());
+    }
+
     public function editable(ThesisDefense $defense): bool
     {
         return $defense->type === 'sidang'

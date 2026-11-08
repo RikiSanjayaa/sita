@@ -8,9 +8,9 @@ use App\Models\SidangReportPeriod;
 use App\Services\SidangReportPeriodService;
 use App\Services\ThesisProjectImportService;
 use App\Support\AcademicTerminology;
+use App\Support\Filament\SidangReportDatePicker;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Checkbox;
-use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -64,10 +64,11 @@ class ListThesisProjects extends ListRecords
                         ])->all())
                         ->default(fn (): ?int => $programId === null ? null : $periodService->activeId($periodService->periods($programId)))
                         ->live(),
-                    DatePicker::make('from')->label('Dari tanggal')->visible(fn (Get $get): bool => blank($get('period_id')))->required(),
-                    DatePicker::make('until')->label('Sampai tanggal')->visible(fn (Get $get): bool => blank($get('period_id')))->required()->afterOrEqual('from'),
+                    SidangReportDatePicker::make('from')->label('Dari tanggal')->visible(fn (Get $get): bool => blank($get('period_id')))->required()->live(),
+                    SidangReportDatePicker::make('until')->label('Sampai tanggal')->visible(fn (Get $get): bool => blank($get('period_id')))
+                        ->defaultFocusedDate(fn (Get $get): ?string => $get('from'))->required()->afterOrEqual('from'),
                     TextInput::make('period')->label('Nama periode')->visible(fn (Get $get): bool => blank($get('period_id')))
-                        ->maxLength(80)->placeholder('Contoh: Ganjil 2026/2027'),
+                        ->maxLength(80)->helperText('Contoh: Ganjil 2026/2027'),
                 ])
                 ->action(function (array $data, Action $action): void {
                     $query = $this->getTableQueryForExport()->reorder()->select('thesis_projects.id')->toBase();

@@ -11,6 +11,7 @@ use App\Models\ThesisProjectTitle;
 use App\Policies\SidangPaperPolicy;
 use App\Services\AdminActionQueueService;
 use App\Services\SidangPaperService;
+use App\Services\SidangScoreService;
 use App\Services\ThesisProjectAdminService;
 use App\Support\AcademicTerminology;
 use App\Support\Filament\BadgeStyles;
@@ -43,7 +44,7 @@ class ThesisProjectsTable
         $isSidangTab = fn (ListThesisProjects $livewire): bool => $livewire->activeTab === ListThesisProjects::SIDANG_PAPER_TAB;
 
         return $table
-            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with('latestSidangDefense'))
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with('latestSidangDefense.examiners'))
             ->defaultSort(function (Builder $query, ListThesisProjects $livewire) use ($isSidangTab): Builder {
                 if ($isSidangTab($livewire)) {
                     $query->orderBy(ThesisDefense::query()
@@ -497,7 +498,14 @@ class ThesisProjectsTable
 
     private static function sidangPaperActionStatus(ThesisProject $record): ?string
     {
-        return $record->state === 'active' ? $record->latestSidangDefense?->status : null;
+        $defense = $record->latestSidangDefense;
+        if ($record->state !== 'active' || $defense === null) {
+            return null;
+        }
+
+        return $defense->status === 'scheduled' && ! app(SidangScoreService::class)->hasPaperPanel($defense)
+            ? null
+            : $defense->status;
     }
 
     private static function canAccessSidangPaper(ThesisProject $record): bool

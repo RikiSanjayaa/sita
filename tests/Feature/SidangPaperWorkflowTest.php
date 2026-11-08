@@ -297,6 +297,48 @@ it('lists only accessible latest sidang records and shows the shortcut for each 
         ]).'#nilai-dari-berkas', $scheduled->project);
 });
 
+it('offers print and digital finalization without a paper score shortcut for a legacy panel', function (): void {
+    [$defense, , $program, $scores] = sidangPaperFixture();
+    $defense->examiners()->findOrFail($scores['examiner_2']['panel_id'])->update(['role' => 'secondary_supervisor']);
+    $admin = User::factory()->asAdmin()->create();
+    AdminProfile::query()->create(['user_id' => $admin->id, 'program_studi_id' => $program->id]);
+    $this->actingAs($admin);
+
+    $url = ThesisProjectResource::getUrl('sidang-paper', [
+        'record' => $defense->project, 'defense' => $defense, 'dari' => 'daftar',
+    ]);
+    Livewire::test(ListThesisProjects::class)->set('activeTab', ListThesisProjects::SIDANG_PAPER_TAB)
+        ->assertTableActionHasLabel('tindakan_berkas_sidang', 'Lihat Berkas', $defense->project)
+        ->assertTableActionHasUrl('tindakan_berkas_sidang', $url, $defense->project)
+        ->assertTableActionHasUrl('unduh_berkas_sidang', route('sidang.paper.print', $defense), $defense->project);
+    $this->get($url)->assertOk()->assertSee(SidangScoreService::PAPER_PANEL_HINT)->assertDontSee('Nilai penguji 2');
+
+    $defense->update(['status' => 'awaiting_finalization']);
+    $this->get($url)->assertOk()->assertSee('Finalisasi Sidang')->assertDontSee('Nilai penguji 2');
+    $head = User::factory()->asKaprodi()->create();
+    KaprodiAssignment::factory()->create(['program_studi_id' => $program->id, 'user_id' => $head->id]);
+    $this->actingAs($head)->get(route('sidang.paper.show', $defense))
+        ->assertInertia(fn (Assert $page) => $page->where('defense.paperPanelHint', SidangScoreService::PAPER_PANEL_HINT));
+});
+
+it('refreshes period suggestions until staff override each field', function (): void {
+    $admin = User::factory()->asAdmin()->create();
+    AdminProfile::query()->create(['user_id' => $admin->id, 'program_studi_id' => ProgramStudi::factory()->create()->id]);
+    $this->actingAs($admin);
+
+    Livewire::test(ListThesisProjects::class)
+        ->set('activeTab', ListThesisProjects::SIDANG_PAPER_TAB)
+        ->mountAction('manageSidangReportPeriod')
+        ->set('mountedActions.0.data.starts_on', '2026-09-01')
+        ->assertActionDataSet(['semester' => 'ganjil', 'start_year' => 2026])
+        ->set('mountedActions.0.data.starts_on', '2028-03-01')
+        ->assertActionDataSet(['semester' => 'genap', 'start_year' => 2027])
+        ->set('mountedActions.0.data.semester', 'ganjil')
+        ->set('mountedActions.0.data.start_year', 2029)
+        ->set('mountedActions.0.data.starts_on', '2028-04-01')
+        ->assertActionDataSet(['semester' => 'ganjil', 'start_year' => 2029]);
+});
+
 function sidangReportSheet(string $content, string $part = 'xl/worksheets/sheet7.xml'): string
 {
     $file = tempnam(sys_get_temp_dir(), 'sita-sidang-');

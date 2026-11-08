@@ -58,6 +58,7 @@ interface Props {
         sk: string | null;
         panel: Panel[];
         panelIds: Record<ScoreRole, number> | null;
+        paperPanelHint: string | null;
         summary: { value: number; grade: string } | null;
     };
     weights: Record<ScoreRole, number>;
@@ -68,7 +69,7 @@ interface Props {
 }
 
 const selectClass =
-    'min-h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring';
+    'h-9 w-full rounded-md border border-border bg-background px-3 text-base focus-visible:ring-2 focus-visible:ring-ring max-md:min-h-11 md:text-sm';
 
 function initialScore(member?: Panel) {
     return {
@@ -129,27 +130,35 @@ export default function BerkasSidang({
         } satisfies Scores,
     });
     const roleEntries = Object.entries(roles) as [ScoreRole, string][];
-    const canEnterScores = examiners.length >= 2 && supervisors.length > 0;
-    const canPreview =
-        roleEntries.every(([role]) => {
-            const entry = form.data.scores[role];
-            return (
-                entry.panel_id &&
-                entry.value !== '' &&
-                Number(entry.value) >= 0 &&
-                Number(entry.value) <= 100
-            );
-        }) &&
-        new Set(Object.values(form.data.scores).map((entry) => entry.panel_id))
-            .size === 3;
-    const preview = canPreview
-        ? roleEntries.reduce(
-              (total, [role]) =>
-                  total +
-                  (Number(form.data.scores[role].value) * weights[role]) / 100,
-              0,
-          )
-        : null;
+    const canEnterScores = defense.paperPanelHint === null;
+    const scores = Object.values(form.data.scores);
+    const selectedIds = scores.map((entry) => entry.panel_id).filter(Boolean);
+    const invalidScore = scores.some(
+        ({ value }) =>
+            value !== '' &&
+            (!/^[+-]?\d*\.?\d{0,2}$/.test(value) ||
+                Number(value) < 0 ||
+                Number(value) > 100),
+    );
+    const scoreIssue =
+        new Set(selectedIds).size !== selectedIds.length
+            ? 'Pilih tiga dosen penilai yang berbeda.'
+            : invalidScore
+              ? 'Masukkan nilai 0 sampai 100 dengan paling banyak dua angka desimal.'
+              : selectedIds.length !== 3 ||
+                  scores.some(({ value }) => value === '')
+                ? 'Lengkapi ketiga penilai dan nilainya untuk melanjutkan.'
+                : null;
+    const preview =
+        scoreIssue === null
+            ? roleEntries.reduce(
+                  (total, [role]) =>
+                      total +
+                      (Number(form.data.scores[role].value) * weights[role]) /
+                          100,
+                  0,
+              )
+            : null;
     const number = (value: number) =>
         new Intl.NumberFormat('id-ID', { maximumFractionDigits: 4 }).format(
             value,
@@ -411,6 +420,7 @@ export default function BerkasSidang({
                                                 min="0"
                                                 max="100"
                                                 step="0.01"
+                                                className="max-md:min-h-11"
                                                 value={entry.value}
                                                 disabled={!member}
                                                 onChange={(event) =>
@@ -433,14 +443,26 @@ export default function BerkasSidang({
                                     </div>
                                 );
                             })}
-                            {preview !== null && (
+                            {preview !== null ? (
                                 <p className="text-sm font-medium tabular-nums">
                                     Pratinjau nilai akhir {number(preview)}
+                                </p>
+                            ) : (
+                                <p
+                                    id="sidang-score-hint"
+                                    className="text-sm text-muted-foreground"
+                                >
+                                    {scoreIssue}
                                 </p>
                             )}
                             <Button
                                 type="button"
-                                disabled={!canPreview || form.processing}
+                                aria-describedby={
+                                    scoreIssue ? 'sidang-score-hint' : undefined
+                                }
+                                disabled={
+                                    scoreIssue !== null || form.processing
+                                }
                                 onClick={() => setConfirming(true)}
                             >
                                 {defense.summary
@@ -451,7 +473,7 @@ export default function BerkasSidang({
                     ) : (
                         <p className="text-sm text-muted-foreground">
                             {defense.editable
-                                ? 'Input dari berkas membutuhkan dua penguji dan minimal satu pembimbing pada panel. Periksa susunan panel pada jadwal sidang.'
+                                ? defense.paperPanelHint
                                 : defense.summary
                                   ? 'Nilai sudah difinalisasi.'
                                   : 'Belum ada rekap nilai dari berkas untuk sidang ini.'}

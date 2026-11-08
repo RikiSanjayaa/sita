@@ -19,6 +19,8 @@ type DateRangePickerProps = {
     disabled?: boolean;
     error?: string;
     className?: string;
+    ariaLabel?: string;
+    numberOfMonths?: number;
 };
 
 const dateFormatter = new Intl.DateTimeFormat('id-ID', {
@@ -69,6 +71,8 @@ function DateRangePicker({
     disabled = false,
     error,
     className,
+    ariaLabel,
+    numberOfMonths = 2,
 }: DateRangePickerProps) {
     const selectedRange: DateRange | undefined = dateFromInput(startDate)
         ? {
@@ -87,8 +91,13 @@ function DateRangePicker({
                         variant="outline"
                         disabled={disabled}
                         aria-invalid={Boolean(error)}
+                        aria-label={
+                            ariaLabel
+                                ? `${ariaLabel}: ${formatRange(selectedRange)}`
+                                : undefined
+                        }
                         className={cn(
-                            'w-full justify-start px-3 text-left font-normal',
+                            'w-full justify-start px-3 text-left font-normal max-md:min-h-11',
                             !selectedRange?.from && 'text-muted-foreground',
                         )}
                     >
@@ -104,11 +113,16 @@ function DateRangePicker({
                     portalled={false}
                 >
                     <Calendar
+                        className="relative"
+                        classNames={{
+                            nav: 'absolute inset-x-2 top-2 z-10 h-7',
+                        }}
                         mode="range"
                         selected={selectedRange}
                         defaultMonth={selectedRange?.from}
                         locale={id}
-                        numberOfMonths={2}
+                        numberOfMonths={numberOfMonths}
+                        showOutsideDays={numberOfMonths > 1}
                         disabled={
                             minimumDate
                                 ? {

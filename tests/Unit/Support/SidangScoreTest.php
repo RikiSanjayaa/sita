@@ -51,6 +51,18 @@ it('does not reinterpret a supervisor as the second examiner for a legacy panel'
     expect((new SidangScoreService)->summary($defense))->toBeNull();
 });
 
+it('recognizes a paper panel by its roles before any scores are recorded', function (string $secondRole, string $thirdRole, bool $supported): void {
+    $defense = scoreSummaryDefense([null, null, null]);
+    $defense->examiners[1]->role = $secondRole;
+    $defense->examiners[2]->role = $thirdRole;
+
+    expect((new SidangScoreService)->hasPaperPanel($defense))->toBe($supported);
+})->with([
+    'two examiners and a supervisor' => ['examiner', 'primary_supervisor', true],
+    'one examiner and two supervisors' => ['secondary_supervisor', 'primary_supervisor', false],
+    'no supervisor' => ['examiner', 'examiner', false],
+]);
+
 it('reads current panel scores even when a prefinalization legacy JSON contains different scores', function (): void {
     $defense = scoreSummaryDefense([88.5, 70, 80]);
     $defense->forceFill(['sidang_paper' => ['scores' => [
