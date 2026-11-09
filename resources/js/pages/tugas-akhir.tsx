@@ -125,6 +125,8 @@ type TugasAkhirPageProps = {
     sidangDate: string | null;
     sidangDateUntil: string | null;
     semproResult: {
+        paperScore: number | null;
+        paperGrade: AcademicGrade | null;
         label: string;
         resultLabel: string;
         scheduledFor: string | null;
@@ -140,6 +142,8 @@ type TugasAkhirPageProps = {
         }>;
     } | null;
     sidangResult: {
+        paperScore: number | null;
+        paperGrade: AcademicGrade | null;
         label: string;
         resultLabel: string;
         scheduledFor: string | null;
@@ -156,6 +160,8 @@ type TugasAkhirPageProps = {
     } | null;
     defenseHistory: {
         sempro: Array<{
+            paperScore: number | null;
+            paperGrade: AcademicGrade | null;
             id: number;
             attemptNo: number;
             statusLabel: string;
@@ -190,6 +196,8 @@ type TugasAkhirPageProps = {
             respondableRevisionIds: number[];
         }>;
         sidang: Array<{
+            paperScore: number | null;
+            paperGrade: AcademicGrade | null;
             id: number;
             attemptNo: number;
             statusLabel: string;
@@ -981,10 +989,10 @@ function DefenseResultSection({
     title: string;
     result: NonNullable<TugasAkhirPageProps['semproResult']>;
 }) {
-    const averageScore = calculateAverageAcademicScore(
-        result.examiners.map((e) => e.score),
-    );
-    const finalGrade = resolveAcademicGrade(averageScore);
+    const averageScore =
+        result.paperScore ??
+        calculateAverageAcademicScore(result.examiners.map((e) => e.score));
+    const finalGrade = result.paperGrade ?? resolveAcademicGrade(averageScore);
     const hasScores = result.examiners.some((e) => e.score !== null);
 
     return (
@@ -1118,10 +1126,10 @@ function DefenseHistoryRow({
     typeLabel: string;
 }) {
     const [expanded, setExpanded] = useState(false);
-    const averageScore = calculateAverageAcademicScore(
-        item.examiners.map((e) => e.score),
-    );
-    const finalGrade = resolveAcademicGrade(averageScore);
+    const averageScore =
+        item.paperScore ??
+        calculateAverageAcademicScore(item.examiners.map((e) => e.score));
+    const finalGrade = item.paperGrade ?? resolveAcademicGrade(averageScore);
     const revisions = item.revisionLog.examiners.flatMap(
         (examiner) => examiner.revisions,
     );

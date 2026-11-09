@@ -11,9 +11,12 @@ use Filament\Actions\DeleteAction;
 use Filament\Actions\ViewAction;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 
 class EditUser extends EditRecord
 {
+    protected ?bool $hasDatabaseTransactions = true;
+
     protected static string $resource = UserResource::class;
 
     protected array $provisioningData = [];
@@ -53,6 +56,7 @@ class EditUser extends EditRecord
         }
         $data['angkatan'] = $this->record->mahasiswaProfile?->angkatan;
         $data['nik'] = $this->record->dosenProfile?->nik;
+        $data['sidang_nidn'] = $this->record->dosenProfile?->sidang_nidn;
         $data['supervision_quota'] = $this->record->dosenProfile?->supervision_quota;
         $data['is_active'] = $this->record->mahasiswaProfile?->is_active ?? $this->record->dosenProfile?->is_active ?? true;
         $data['is_obe_curriculum'] = $this->record->mahasiswaProfile?->is_obe_curriculum ?? false;
@@ -79,6 +83,7 @@ class EditUser extends EditRecord
             'academic_assignments' => $data['academic_assignments'] ?? [],
             'angkatan' => $data['angkatan'] ?? null,
             'nik' => $data['nik'] ?? null,
+            'sidang_nidn' => $data['sidang_nidn'] ?? null,
             'supervision_quota' => $data['supervision_quota'] ?? null,
             'is_active' => $data['is_active'] ?? true,
             'is_obe_curriculum' => (bool) ($data['is_obe_curriculum'] ?? false),
@@ -94,6 +99,7 @@ class EditUser extends EditRecord
             $data['academic_assignments'],
             $data['angkatan'],
             $data['nik'],
+            $data['sidang_nidn'],
             $data['supervision_quota'],
             $data['is_active'],
             $data['is_obe_curriculum'],
@@ -107,10 +113,12 @@ class EditUser extends EditRecord
         /** @var \App\Models\User $user */
         $user = $this->record;
 
-        app(UserProvisioningService::class)->syncRoleAndProfiles(
-            $user,
-            $this->provisioningData,
-        );
+        try {
+            app(UserProvisioningService::class)->syncRoleAndProfiles($user, $this->provisioningData);
+        } catch (ValidationException $exception) {
+            throw ValidationException::withMessages(collect($exception->errors())
+                ->mapWithKeys(fn (array $messages, string $field): array => ['data.'.$field => $messages])->all());
+        }
     }
 
     protected function getHeaderActions(): array

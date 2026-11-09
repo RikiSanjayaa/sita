@@ -31,9 +31,9 @@ const SECRET_EXAMINER_NOTES = 'Catatan rahasia dari penguji tambahan';
 
 /**
  * A mahasiswa with two supervisors, a passed sempro (visible examiner) and a scheduled sidang
- * whose panel is both supervisors plus one additional examiner.
+ * whose panel is both supervisors plus two additional examiners.
  *
- * @return array{admin: User, student: User, other: User, primary: User, secondary: User, examiner: User, semproExaminer: User, project: ThesisProject, defense: ThesisDefense, thread: MentorshipChatThread}
+ * @return array{admin: User, student: User, other: User, primary: User, secondary: User, examiner: User, secondExaminer: User, semproExaminer: User, project: ThesisProject, defense: ThesisDefense, thread: MentorshipChatThread}
  */
 function secretSidangScenario(): array
 {
@@ -46,6 +46,7 @@ function secretSidangScenario(): array
     $primary = User::factory()->asDosen()->create(['name' => 'Pembimbing Utama']);
     $secondary = User::factory()->asDosen()->create(['name' => 'Pembimbing Kedua']);
     $examiner = User::factory()->asDosen()->create(['name' => SECRET_EXAMINER_NAME]);
+    $secondExaminer = User::factory()->asDosen()->create(['name' => 'Penguji Rahasia Dua']);
     $semproExaminer = User::factory()->asDosen()->create(['name' => 'Penguji Sempro Terlihat']);
 
     foreach ([$student, $other] as $mahasiswa) {
@@ -56,7 +57,7 @@ function secretSidangScenario(): array
         ]);
     }
 
-    foreach ([$primary, $secondary, $examiner, $semproExaminer] as $lecturer) {
+    foreach ([$primary, $secondary, $examiner, $secondExaminer, $semproExaminer] as $lecturer) {
         DosenProfile::factory()->create([
             'user_id' => $lecturer->id,
             'program_studi_id' => $prodi->id,
@@ -122,7 +123,7 @@ function secretSidangScenario(): array
         scheduledFor: now()->addDays(10)->setTime(9, 0)->format('Y-m-d H:i:s'),
         location: 'Ruang Sidang Rahasia',
         mode: 'offline',
-        panelUserIds: [$primary->id, $secondary->id, $examiner->id],
+        panelUserIds: [$primary->id, $secondary->id, $examiner->id, $secondExaminer->id],
     );
 
     $thread = MentorshipChatThread::query()
@@ -131,7 +132,7 @@ function secretSidangScenario(): array
         ->where('context_id', $defense->id)
         ->firstOrFail();
 
-    return compact('admin', 'student', 'other', 'primary', 'secondary', 'examiner', 'semproExaminer', 'project', 'defense', 'thread');
+    return compact('admin', 'student', 'other', 'primary', 'secondary', 'examiner', 'secondExaminer', 'semproExaminer', 'project', 'defense', 'thread');
 }
 
 /**
@@ -229,13 +230,13 @@ it('keeps supervisors and hides additional examiners until the sidang is complet
     $defense->forceFill(['status' => 'completed'])->save();
 
     expect($defense->fresh('examiners')->examinersForStudent()->pluck('lecturer_user_id')->all())
-        ->toBe([$scenario['primary']->id, $scenario['secondary']->id, $scenario['examiner']->id]);
+        ->toBe([$scenario['primary']->id, $scenario['secondary']->id, $scenario['examiner']->id, $scenario['secondExaminer']->id]);
 });
 
 it('selects the same secret examiners in SQL as the model rule', function (): void {
     $scenario = secretSidangScenario();
 
-    expect(ThesisDefenseExaminer::secretLecturerIdsForStudent($scenario['student']->id))->toBe([$scenario['examiner']->id])
+    expect(ThesisDefenseExaminer::secretLecturerIdsForStudent($scenario['student']->id))->toBe([$scenario['examiner']->id, $scenario['secondExaminer']->id])
         ->and(ThesisDefenseExaminer::secretLecturerIdsForStudent($scenario['other']->id))->toBe([]);
 
     $scenario['defense']->forceFill(['status' => 'completed'])->save();
@@ -277,7 +278,7 @@ it('puts only the student and supervisors in the sidang thread and survives resc
         scheduledFor: now()->addDays(14)->format('Y-m-d H:i:s'),
         location: 'Ruang Lagi',
         mode: 'offline',
-        panelUserIds: [$primary->id, $secondary->id, $examiner->id],
+        panelUserIds: [$primary->id, $secondary->id, $examiner->id, $scenario['secondExaminer']->id],
     );
 
     expect($participantIds())->toBe($expected)
@@ -304,7 +305,7 @@ it('adds the additional examiners to the sidang thread when the sidang is comple
         ->first();
 
     expect($examinerParticipant?->role)->toBe('examiner')
-        ->and(MentorshipChatThreadParticipant::query()->where('thread_id', $thread->id)->where('role', 'examiner')->count())->toBe(3)
+        ->and(MentorshipChatThreadParticipant::query()->where('thread_id', $thread->id)->where('role', 'examiner')->count())->toBe(4)
         ->and($thread->messages()->count())->toBe($messagesBefore + 1)
         ->and($thread->messages()->latest('id')->value('message'))->toBe('Penguji Sidang ditambahkan untuk koordinasi revisi.');
 });

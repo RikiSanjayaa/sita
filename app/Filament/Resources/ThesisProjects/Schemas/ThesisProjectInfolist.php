@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\ThesisProjects\Schemas;
 
 use App\Filament\Resources\ThesisProjects\Tables\ThesisProjectsTable;
+use App\Filament\Resources\ThesisProjects\ThesisProjectResource;
 use App\Models\MentorshipDocument;
 use App\Models\ThesisDefense;
 use App\Models\ThesisDocument;
@@ -17,11 +18,13 @@ use App\Services\MentorshipSessionNoteService;
 use App\Support\AcademicTerminology;
 use App\Support\DefenseRevisionLog;
 use App\Support\Filament\BadgeStyles;
+use App\Support\SidangSettings;
 use App\Support\WitaDateTime;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\RepeatableEntry\TableColumn;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Infolists\Components\ViewEntry;
+use Filament\Schemas\Components\Callout;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
@@ -33,6 +36,11 @@ class ThesisProjectInfolist
     {
         return $schema
             ->components([
+                Callout::make('Acuan sidang sementara')
+                    ->description(fn (ThesisProject $record): ?string => SidangSettings::programWarning($record->programStudi))
+                    ->warning()
+                    ->columnSpanFull()
+                    ->visible(fn (ThesisProject $record): bool => SidangSettings::programWarning($record->programStudi) !== null),
                 Section::make(fn(ThesisProject $record): string => 'Ringkasan '.AcademicTerminology::forProject($record)['finalWork'])
                     ->columns(2)
                     ->schema([
@@ -297,6 +305,7 @@ class ThesisProjectInfolist
                 TableColumn::make('Lokasi'),
                 TableColumn::make('Mode'),
                 TableColumn::make('Penguji'),
+                ...($type === 'sidang' ? [TableColumn::make('Berkas')] : []),
             ])
             ->schema([
                 TextEntry::make('attempt'),
@@ -312,6 +321,9 @@ class ThesisProjectInfolist
                 TextEntry::make('location'),
                 TextEntry::make('mode'),
                 TextEntry::make('examiners')->listWithLineBreaks(),
+                ...($type === 'sidang' ? [TextEntry::make('paper_url')
+                    ->formatStateUsing(fn (): string => 'Kelola berkas sidang')
+                    ->url(fn (?string $state): ?string => $state)] : []),
             ])
             ->contained(false);
     }
@@ -555,7 +567,7 @@ class ThesisProjectInfolist
 
     private static function nextAdminStepLabel(ThesisProject $record): string
     {
-        if (in_array($record->state, ['completed', 'cancelled'], true)) {
+        if ($record->isArchived() || in_array($record->state, ['completed', 'cancelled'], true)) {
             return 'Monitoring Saja';
         }
 
@@ -579,7 +591,7 @@ class ThesisProjectInfolist
 
     private static function nextAdminStepColor(ThesisProject $record): string
     {
-        if (in_array($record->state, ['completed', 'cancelled'], true)) {
+        if ($record->isArchived() || in_array($record->state, ['completed', 'cancelled'], true)) {
             return 'gray';
         }
 
@@ -598,6 +610,19 @@ class ThesisProjectInfolist
     private static function workflowAttention(ThesisProject $record): string
     {
         $terms = AcademicTerminology::forProject($record);
+
+        if ($record->state === 'cancelled') {
+            return $terms['finalWork'].' dibatalkan. Data ini tersedia untuk melihat riwayat.';
+        }
+
+        if ($record->isArchived()) {
+            return $terms['finalWork'].' diarsipkan. Data ini tersedia untuk melihat riwayat.';
+        }
+
+        if ($record->state === 'completed') {
+            return $terms['finalWork'].' sudah selesai. Data ini tersedia untuk monitoring dan rekap hasil.';
+        }
+
         if ($record->open_revisions_count > 0) {
             return sprintf('%d revisi masih terbuka dan perlu ditindaklanjuti.', $record->open_revisions_count);
         }
@@ -740,6 +765,7 @@ class ThesisProjectInfolist
             ->sortBy('attempt_no')
             ->map(fn(ThesisDefense $defense): array => [
                 'attempt' => '#'.$defense->attempt_no,
+                'paper_url' => $defense->type === 'sidang' ? ThesisProjectResource::getUrl('sidang-paper', ['record' => $defense->project_id, 'defense' => $defense]) : null,
                 'status' => self::defenseStatusLabel($defense->status),
                 'result' => self::defenseResultLabel($defense->result, $type),
                 'scheduled_for' => self::formatDefenseSchedule($defense),
@@ -751,7 +777,9 @@ class ThesisProjectInfolist
                         '%s - %s - %s%s',
                         $examiner->lecturer?->name ?? '-',
                         self::defenseRoleLabel($examiner->role, $examiner->order_no),
-                        self::examinerDecisionLabel($examiner->decision),
+                        $defense->type === 'sidang' && $examiner->decision === 'pending' && $examiner->score !== null
+                            ? ($examiner->score_source === 'paper' ? 'Nilai dari berkas' : 'Nilai tercatat')
+                            : self::examinerDecisionLabel($examiner->decision),
                         $examiner->score !== null ? sprintf(' - Nilai %s', $examiner->score) : '',
                     ))
                     ->values()

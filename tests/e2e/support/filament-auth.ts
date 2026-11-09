@@ -24,7 +24,7 @@ export async function loginToFilament(
         .fill(account.email);
     await page.locator('input[id="form.password"]').fill(account.password);
     await page.getByRole('button', { name: /Masuk ke dashboard/i }).click();
-    await expect(page).toHaveURL(/\/admin$/);
+    await expect(page).toHaveURL(/\/admin$/, { timeout: 30_000 });
 }
 
 export async function newFilamentContext(

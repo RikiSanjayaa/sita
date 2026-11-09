@@ -903,6 +903,18 @@ test.describe('Golden path: from title proposal to graduation', () => {
                 await kaprodiPage
                     .getByRole('button', { name: lecturers.fajar.name })
                     .click();
+                await expect(
+                    dialog.getByText('1 dari minimal 2 penguji'),
+                ).toBeVisible();
+                await expect(
+                    dialog.getByRole('button', { name: 'Simpan Jadwal' }),
+                ).toBeDisabled();
+                await dialog
+                    .getByPlaceholder('Cari dosen penguji (min. 2 karakter)...')
+                    .fill(lecturers.ahmad.query);
+                await dialog
+                    .getByRole('button', { name: lecturers.ahmad.name })
+                    .click();
                 await dialog
                     .getByRole('button', { name: 'Simpan Jadwal' })
                     .click();
@@ -915,6 +927,59 @@ test.describe('Golden path: from title proposal to graduation', () => {
                 await expect(row).toContainText('Dr. Budi Santoso');
                 await expect(row).toContainText('Dr. Ratna Kusuma');
                 await expect(row).toContainText('Dr. Fajar Nugraha');
+
+                await row.getByRole('button', { name: 'Aksi lainnya' }).click();
+                await kaprodiPage
+                    .getByRole('menuitem', { name: 'Kelola berkas sidang' })
+                    .click();
+                await expect(
+                    kaprodiPage.getByRole('link', {
+                        name: 'Cetak / Simpan PDF',
+                    }),
+                ).toBeVisible();
+                await expect(
+                    kaprodiPage.getByRole('link', {
+                        name: 'Unduh Paket Sidang (.docx)',
+                    }),
+                ).toBeVisible();
+
+                await adminPage.goto(
+                    '/admin/thesis-projects?tab=berkas-sidang',
+                );
+                const adminSearch = adminPage.getByRole('searchbox', {
+                    name: 'Search',
+                    exact: true,
+                });
+                await adminSearch.fill(student);
+                await adminSearch.press('Enter');
+                const sidangRow = studentRowIn(adminPage, student);
+                const downloadWord = sidangRow.getByRole('link', {
+                    name: 'Unduh Word',
+                    exact: true,
+                });
+                await expect(downloadWord).toBeInViewport();
+                const word = adminPage.waitForEvent('download');
+                await downloadWord.click();
+                expect((await word).suggestedFilename()).toMatch(
+                    /^paket-sidang-\d+\.docx$/,
+                );
+                await sidangRow
+                    .getByRole('link', { name: 'Input Nilai', exact: true })
+                    .click();
+                await expect(adminPage).toHaveURL(
+                    /\/admin\/thesis-projects\/\d+\/berkas-sidang\/\d+\?dari=daftar#nilai-dari-berkas$/,
+                );
+                await expect(adminPage.locator('.fi-sidebar')).toBeVisible();
+                await expect(
+                    adminPage.getByRole('button', { name: 'Simpan nomor SK' }),
+                ).toBeEnabled();
+                await expect(
+                    adminPage.getByRole('heading', {
+                        name: 'Nilai dari berkas',
+                    }),
+                ).toBeInViewport();
+                await adminPage.getByRole('link', { name: 'Kembali' }).click();
+                await expect(adminPage).toHaveURL(/tab=berkas-sidang/);
 
                 await studentPage.goto('/mahasiswa/tugas-akhir');
                 await expect(
@@ -936,6 +1001,7 @@ test.describe('Golden path: from title proposal to graduation', () => {
                     { page: pageOf.budi, score: '88' },
                     { page: pageOf.ratna, score: '90' },
                     { page: pageOf.fajar, score: '85' },
+                    { page: pageOf.ahmad, score: '87' },
                 ];
 
                 for (const member of panel) {
@@ -957,6 +1023,11 @@ test.describe('Golden path: from title proposal to graduation', () => {
                     student,
                     'Sidang Akhir',
                 );
+                // Two examiners and the first supervisor use the same weighted score as the paper route.
+                await openDefenseSheet(pageOf.fajar, student, 'Sidang Akhir');
+                await expect(
+                    pageOf.fajar.getByText(/Nilai akhir 86\.80/),
+                ).toBeVisible();
                 await attachStageScreenshot(
                     testInfo,
                     pageOf.fajar,
@@ -965,11 +1036,31 @@ test.describe('Golden path: from title proposal to graduation', () => {
             });
 
             await test.step('12. Admin completes the sidang and the mahasiswa graduates', async () => {
-                await openAdminProject(adminPage, student);
-                const modal = await openWorkflowAction(
-                    adminPage,
-                    /^Selesaikan Sidang/,
+                await adminPage.goto(
+                    '/admin/thesis-projects?tab=berkas-sidang',
                 );
+                const adminSearch = adminPage.getByRole('searchbox', {
+                    name: 'Search',
+                    exact: true,
+                });
+                await adminSearch.fill(student);
+                await adminSearch.press('Enter');
+                await studentRowIn(adminPage, student)
+                    .getByRole('link', {
+                        name: 'Tinjau & Finalisasi',
+                        exact: true,
+                    })
+                    .click();
+                await adminPage
+                    .getByRole('link', {
+                        name: 'Finalisasi Sidang',
+                        exact: true,
+                    })
+                    .click();
+                const modal = adminPage
+                    .locator('.fi-modal-window:visible')
+                    .last();
+                await expect(modal).toBeVisible();
                 await pickFilamentSelect(modal, 0, 'pass');
                 await modal
                     .locator('textarea')
@@ -989,6 +1080,24 @@ test.describe('Golden path: from title proposal to graduation', () => {
                 await studentPage.goto('/mahasiswa/tugas-akhir');
                 await expect(
                     studentPage.getByText('Sidang Skripsi Selesai').first(),
+                ).toBeVisible();
+                await adminPage.goto(
+                    '/admin/thesis-projects?tab=berkas-sidang',
+                );
+                await adminSearch.fill(student);
+                await adminSearch.press('Enter');
+                const finished = studentRowIn(adminPage, student);
+                await finished.getByRole('checkbox').check();
+                await adminPage
+                    .getByRole('button', { name: /Bulk actions|Tindakan/i })
+                    .click();
+                await adminPage.getByText('Isi No SK', { exact: true }).click();
+                await modal.getByLabel('No SK').fill('001/ADUM/E2E');
+                await modal
+                    .getByRole('button', { name: 'Simpan No SK' })
+                    .click();
+                await expect(
+                    finished.getByText('SK 001/ADUM/E2E'),
                 ).toBeVisible();
                 await attachStageScreenshot(
                     testInfo,

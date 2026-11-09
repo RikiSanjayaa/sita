@@ -312,7 +312,7 @@ export const thesisScenarios = {
         studentKey: 'sinta' as const,
         studentName: 'Sinta Sidang Terjadwal',
         currentTitle: 'Prediksi Kelulusan Tepat Waktu Dengan Pohon Keputusan',
-        panelKeys: ['dosen1', 'dosen2', 'dosen3'] as const,
+        panelKeys: ['dosen1', 'dosen2', 'dosen3', 'dosen4'] as const,
         location: 'Ruang Sidang E2E',
     },
 };

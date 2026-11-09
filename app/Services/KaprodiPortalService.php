@@ -6,6 +6,7 @@ use App\Models\KaprodiAssignment;
 use App\Models\MahasiswaProfile;
 use App\Models\MentorshipDocument;
 use App\Models\ProgramStudi;
+use App\Models\SidangReportPeriod;
 use App\Models\ThesisDefense;
 use App\Models\ThesisDocument;
 use App\Models\ThesisProject;
@@ -14,6 +15,7 @@ use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use App\Support\AcademicTerminology;
 use App\Support\DefenseRevisionLog;
+use App\Support\SidangSettings;
 use App\Support\WitaDateTime;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
@@ -104,13 +106,30 @@ class KaprodiPortalService
             ->with([
                 'project.student.mahasiswaProfile',
                 'project.latestTitle',
+                'project.programStudi',
+                'examiners.lecturer.dosenProfile',
                 ...DefenseRevisionLog::RELATIONS,
             ])
             ->latest('scheduled_for')
             ->get();
 
+        $latestSidangAttempts = $defenses->where('type', 'sidang')->where('status', '!=', 'cancelled')
+            ->groupBy('project_id')->map(fn (Collection $attempts): int => $attempts->max('attempt_no'));
+        $reportPeriodService = app(SidangReportPeriodService::class);
+        $reportPeriods = $reportPeriodService->periods($programStudi->id);
+        $scores = app(SidangScoreService::class);
+        $scoreSummaries = $defenses->mapWithKeys(fn (ThesisDefense $defense): array => [$defense->id => $scores->summary($defense)]);
+
         return [
             'programStudi' => $this->programStudiSummary($programStudi),
+            'reportPeriods' => $reportPeriods->map(fn (SidangReportPeriod $period): array => [
+                'id' => $period->id,
+                'label' => $period->label(),
+                'range' => $period->starts_on->format('d/m/Y').' - '.$period->ends_on->format('d/m/Y'),
+            ])->all(),
+            'activeReportPeriodId' => $reportPeriodService->activeId($reportPeriods),
+            'minimumPaperExaminers' => SidangSettings::minimumPaperExaminers($programStudi),
+            'programWarning' => SidangSettings::programWarning($programStudi),
             'summaryCards' => collect(['sempro', 'sidang'])
                 ->map(fn(string $type): array => [
                     'label' => $this->defenseTypeLabel($type),
@@ -127,10 +146,26 @@ class KaprodiPortalService
                 'typeKey' => $defense->type,
                 'status' => $this->statusLabel($defense->status),
                 'statusKey' => $defense->status,
+                'inFinalizationQueue' => $this->isInFinalizationQueue($defense),
                 'result' => $this->defenseResultLabel($defense),
-                'averageScore' => $this->averageScore($defense),
+                'averageScore' => $defense->type === 'sidang'
+                    ? ($defense->status === 'completed' && isset($defense->sidang_paper['value'], $defense->sidang_paper['grade'])
+                        ? (float) $defense->sidang_paper['value']
+                        : ($scoreSummaries[$defense->id]['value'] ?? null))
+                    : $this->averageScore($defense),
                 'scoreRequired' => $defense->requiresScore(),
-                'grade' => $this->grade($this->averageScore($defense)),
+                'grade' => $defense->type === 'sidang'
+                    ? ($defense->status === 'completed' && isset($defense->sidang_paper['value'], $defense->sidang_paper['grade'])
+                        ? $defense->sidang_paper['grade']
+                        : ($scoreSummaries[$defense->id]['grade'] ?? null))
+                    : $this->grade($this->averageScore($defense)),
+                'paperRecorded' => isset($defense->sidang_paper['recorded_at']),
+                'paperPanelHint' => $defense->type === 'sidang' && ! $scores->hasPaperPanel($defense)
+                    ? SidangScoreService::PAPER_PANEL_HINT
+                    : null,
+                'readyForReport' => $scoreSummaries[$defense->id] !== null && $defense->status === 'completed'
+                    && in_array($defense->result, ['pass', 'pass_with_revision'], true)
+                    && $defense->attempt_no === $latestSidangAttempts->get($defense->project_id),
                 'student' => $defense->project?->student?->name ?? 'Mahasiswa',
                 'terminology' => $defense->project instanceof ThesisProject
                     ? AcademicTerminology::forProject($defense->project)
@@ -152,7 +187,9 @@ class KaprodiPortalService
                         'id' => $examiner->lecturer_user_id,
                         'name' => $examiner->lecturer?->name ?? '-',
                         'role' => $this->examinerRoleLabel($examiner->role),
-                        'decision' => $this->defenseDecisionLabel($defense, $examiner->decision),
+                        'decision' => $defense->type === 'sidang' && $examiner->decision === 'pending' && $examiner->score !== null
+                            ? ($examiner->score_source === 'paper' ? 'Nilai dari berkas' : 'Nilai tercatat')
+                            : $this->defenseDecisionLabel($defense, $examiner->decision),
                         'score' => $examiner->score,
                         'profileUrl' => route('users.profile.show', ['user' => $examiner->lecturer_user_id]),
                     ])
@@ -1223,12 +1260,11 @@ class KaprodiPortalService
         $awaitingFinalization = ThesisDefense::query()
             ->whereHas('project', fn($query) => $query
                 ->current()
-                ->where('program_studi_id', $programStudi->id)
-                ->where('state', 'active')
-                ->whereNull('archived_at'))
+                ->where('program_studi_id', $programStudi->id))
             ->where('status', 'awaiting_finalization')
             ->with('project.student')
             ->get()
+            ->filter(fn (ThesisDefense $defense): bool => $this->isInFinalizationQueue($defense))
             ->map(fn(ThesisDefense $defense): string => $defense->project?->student?->name ?? 'Mahasiswa');
 
         $items = [
@@ -1315,6 +1351,13 @@ class KaprodiPortalService
                 'names' => $index === 0 ? array_slice($item['names'], 0, 1) : [],
             ])
             ->all();
+    }
+
+    private function isInFinalizationQueue(ThesisDefense $defense): bool
+    {
+        return $defense->status === 'awaiting_finalization'
+            && $defense->project?->state === 'active'
+            && $defense->project->archived_at === null;
     }
 
     /**

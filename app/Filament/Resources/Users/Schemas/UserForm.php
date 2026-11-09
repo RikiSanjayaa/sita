@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Users\Schemas;
 
 use App\Enums\AppRole;
+use App\Models\DosenProfile;
 use App\Models\ExpertiseField;
 use App\Models\ProgramStudi;
 use App\Models\User;
@@ -17,6 +18,8 @@ use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Unique;
 
 class UserForm
 {
@@ -155,6 +158,12 @@ class UserForm
                             ->label('NIK')
                             ->required()
                             ->maxLength(255),
+                        TextInput::make('sidang_nidn')
+                            ->label('NIDN')
+                            ->trim()
+                            ->maxLength(30)
+                            ->rule(fn (?User $record): Unique => Rule::unique(DosenProfile::class, 'sidang_nidn')->ignore($record?->dosenProfile?->id))
+                            ->validationMessages(['unique' => 'NIDN sudah digunakan dosen lain. Periksa kembali NIDN.']),
                         TextInput::make('supervision_quota')
                             ->label('Kuota Bimbingan')
                             ->hintIcon(

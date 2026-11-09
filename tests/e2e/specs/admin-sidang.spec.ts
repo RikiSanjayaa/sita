@@ -36,7 +36,7 @@ function scheduleSidangForStudent(
     studentEmail: string,
     scheduledFor: string,
     location: string,
-    panelEmails: [string, string, string],
+    panelEmails: string[],
     notes: string,
 ): void {
     const emailList = panelEmails.map((email) => `"${email}"`).join(', ');
@@ -220,7 +220,7 @@ test.describe('Admin sidang workflow', () => {
         }
     });
 
-    test('admin schedules sidang with both supervisors plus one extra examiner who stays secret from the student', async ({
+    test('admin schedules sidang with both supervisors and two examiners who stay secret from the student', async ({
         browser,
     }) => {
         const studentContext = await browser.newContext({
@@ -239,7 +239,12 @@ test.describe('Admin sidang workflow', () => {
             'mahasiswa@sita.test',
             scheduledFor,
             'Ruang Sidang Playwright A',
-            ['dosen@sita.test', 'dosen5@sita.test', 'dosen6@sita.test'],
+            [
+                'dosen@sita.test',
+                'dosen5@sita.test',
+                'dosen6@sita.test',
+                'dosen2@sita.test',
+            ],
             'Sidang dijadwalkan dari Playwright untuk memverifikasi panel dan thread penguji.',
         );
 
@@ -315,7 +320,12 @@ test.describe('Admin sidang workflow', () => {
             'putra@sita.test',
             scheduledFor,
             'Ruang Sidang Playwright B',
-            ['dosen4@sita.test', 'dosen3@sita.test', 'dosen5@sita.test'],
+            [
+                'dosen4@sita.test',
+                'dosen3@sita.test',
+                'dosen5@sita.test',
+                'dosen@sita.test',
+            ],
             'Panel sidang diperbarui untuk mengganti penguji eksternal.',
         );
 
@@ -392,7 +402,12 @@ test.describe('Admin sidang workflow', () => {
                 new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
             ),
             'Ruang Sidang Retry Awal',
-            ['dosen4@sita.test', 'dosen3@sita.test', 'dosen6@sita.test'],
+            [
+                'dosen4@sita.test',
+                'dosen3@sita.test',
+                'dosen6@sita.test',
+                'dosen@sita.test',
+            ],
             'Reset sidang awal sebelum skenario gagal dan ulang.',
         );
 
@@ -419,6 +434,13 @@ test.describe('Admin sidang workflow', () => {
         );
 
         // Before the sidang is completed the extra examiner (dosen6) is secret from the student.
+        submitSidangDecisionForStudent(
+            'putra@sita.test',
+            'dosen@sita.test',
+            'fail',
+            59,
+            'Perlu pengujian ulang.',
+        );
         await studentPage.goto('/mahasiswa/tugas-akhir');
         await expect(
             studentPage.getByText('Ruang Sidang Retry Awal').first(),
@@ -451,7 +473,12 @@ test.describe('Admin sidang workflow', () => {
                 new Date(Date.now() + 16 * 24 * 60 * 60 * 1000),
             ),
             'Ruang Sidang Retry Final',
-            ['dosen4@sita.test', 'dosen3@sita.test', 'dosen2@sita.test'],
+            [
+                'dosen4@sita.test',
+                'dosen3@sita.test',
+                'dosen2@sita.test',
+                'dosen@sita.test',
+            ],
             'Sidang ulang dijadwalkan setelah perbaikan final.',
         );
 
@@ -475,6 +502,13 @@ test.describe('Admin sidang workflow', () => {
             'pass',
             85,
             'Sidang ulang memenuhi standar kelulusan akhir.',
+        );
+        submitSidangDecisionForStudent(
+            'putra@sita.test',
+            'dosen@sita.test',
+            'pass',
+            84,
+            'Perbaikan sudah memadai.',
         );
         completeSidangForStudent(
             'putra@sita.test',

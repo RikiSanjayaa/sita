@@ -281,15 +281,8 @@ export default function KaprodiDashboardPage() {
                             className={
                                 index === 0 ? 'md:col-span-2' : undefined
                             }
-                            meta={
-                                index === 0 && item.names.length > 0 ? (
-                                    <p className="text-xs leading-relaxed text-pretty text-muted-foreground">
-                                        <span className="font-medium text-foreground">
-                                            Terkait:{' '}
-                                        </span>
-                                        {item.names[0]}
-                                    </p>
-                                ) : undefined
+                            previewName={
+                                index === 0 ? item.names[0] : undefined
                             }
                             action={
                                 <Button

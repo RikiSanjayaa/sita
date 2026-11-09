@@ -49,7 +49,13 @@ export function AppSidebar({ role }: AppSidebarProps) {
                       item.href !== '/kaprodi/dokumen' || canViewDocuments,
               )
             : items;
-    const mainNavigation = visibleItems(resolvedMainNavigation);
+    const mainNavigation = visibleItems(resolvedMainNavigation).map((item) =>
+        activeRole === 'kaprodi' &&
+        item.href === '/kaprodi/sempro-sidang' &&
+        /^\/defenses\/\d+\/berkas-sidang\/?$/.test(currentUrl)
+            ? { ...item, isActive: true }
+            : item,
+    );
     const sections = (navigation.sections ?? []).map((section) => ({
         ...section,
         items: visibleItems(section.items),

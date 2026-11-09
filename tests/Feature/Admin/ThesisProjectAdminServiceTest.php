@@ -464,6 +464,7 @@ test('admin service schedules and completes sidang with revision', function (): 
     $primarySupervisor = User::factory()->asDosen()->create();
     $secondarySupervisor = User::factory()->asDosen()->create();
     $examiner = User::factory()->asDosen()->create();
+    $secondExaminer = User::factory()->asDosen()->create();
     $prodi = ProgramStudi::factory()->create(['name' => 'Sistem Informasi']);
 
     MahasiswaProfile::query()->create([
@@ -475,7 +476,7 @@ test('admin service schedules and completes sidang with revision', function (): 
         'is_active' => true,
     ]);
 
-    foreach ([$primarySupervisor, $secondarySupervisor, $examiner] as $lecturer) {
+    foreach ([$primarySupervisor, $secondarySupervisor, $examiner, $secondExaminer] as $lecturer) {
         DosenProfile::query()->create([
             'user_id' => $lecturer->id,
             'nik' => '730101010101'.str_pad((string) $lecturer->id, 4, '0', STR_PAD_LEFT),
@@ -532,7 +533,7 @@ test('admin service schedules and completes sidang with revision', function (): 
         scheduledFor: $scheduledFor->format('Y-m-d H:i:s'),
         location: 'Ruang Sidang Proyek',
         mode: 'offline',
-        panelUserIds: [$primarySupervisor->id, $secondarySupervisor->id, $examiner->id],
+        panelUserIds: [$primarySupervisor->id, $secondarySupervisor->id, $examiner->id, $secondExaminer->id],
         notes: 'Sidang tahap akhir.',
         scheduledUntil: $scheduledUntil->format('Y-m-d H:i:s'),
     );
@@ -544,7 +545,7 @@ test('admin service schedules and completes sidang with revision', function (): 
         ->where('context_id', $scheduledSidang->id)
         ->firstOrFail();
 
-    expect($scheduledSidang->examiners()->count())->toBe(3)
+    expect($scheduledSidang->examiners()->count())->toBe(4)
         ->and($scheduledSidang->scheduled_until?->toDateTimeString())->toBe($scheduledUntil->toDateTimeString())
         ->and($scheduledSidang->examiners()->where('role', 'primary_supervisor')->exists())->toBeTrue()
         ->and($scheduledSidang->examiners()->where('role', 'secondary_supervisor')->exists())->toBeTrue()
@@ -566,7 +567,7 @@ test('admin service schedules and completes sidang with revision', function (): 
         ]);
 
     $scheduledSidang->examiners()
-        ->whereIn('lecturer_user_id', [$secondarySupervisor->id, $examiner->id])
+        ->whereIn('lecturer_user_id', [$secondarySupervisor->id, $examiner->id, $secondExaminer->id])
         ->update([
             'decision' => 'pass',
             'score' => 86,
@@ -599,7 +600,7 @@ test('admin service schedules and completes sidang with revision', function (): 
         ->and(ThesisProjectEvent::query()->where('event_type', 'sidang_completed')->count())->toBe(1)
         ->and($project->fresh()->phase)->toBe('sidang')
         ->and($project->fresh()->state)->toBe('active')
-        ->and(MentorshipChatThreadParticipant::query()->where('thread_id', $sidangThread->id)->where('role', 'examiner')->count())->toBe(3)
+        ->and(MentorshipChatThreadParticipant::query()->where('thread_id', $sidangThread->id)->where('role', 'examiner')->count())->toBe(4)
         ->and(MentorshipChatThreadParticipant::query()->where('thread_id', $sidangThread->id)->where('user_id', $examiner->id)->exists())->toBeTrue()
         ->and($sidangThread->messages()->count())->toBe(2);
 
@@ -653,6 +654,7 @@ test('admin service reschedules sidang and notifies student and panel', function
     $student = User::factory()->asMahasiswa()->create();
     $examinerOne = User::factory()->asDosen()->create();
     $examinerTwo = User::factory()->asDosen()->create();
+    $supervisor = User::factory()->asDosen()->create();
     $prodi = ProgramStudi::factory()->create(['name' => 'Teknik Informatika']);
 
     MahasiswaProfile::factory()->create([
@@ -661,7 +663,7 @@ test('admin service reschedules sidang and notifies student and panel', function
         'is_active' => true,
     ]);
 
-    foreach ([$examinerOne, $examinerTwo] as $lecturer) {
+    foreach ([$examinerOne, $examinerTwo, $supervisor] as $lecturer) {
         DosenProfile::factory()->create([
             'user_id' => $lecturer->id,
             'program_studi_id' => $prodi->id,
@@ -676,6 +678,12 @@ test('admin service reschedules sidang and notifies student and panel', function
         'state' => 'active',
         'started_at' => now()->subMonth(),
         'created_by' => $student->id,
+    ]);
+
+    $project->supervisorAssignments()->create([
+        'lecturer_user_id' => $supervisor->id,
+        'role' => AdvisorType::Primary->value, 'status' => 'active',
+        'assigned_by' => $admin->id, 'started_at' => now()->subMonth(),
     ]);
 
     ThesisProjectTitle::query()->create([
@@ -695,7 +703,7 @@ test('admin service reschedules sidang and notifies student and panel', function
         scheduledFor: '2026-07-01 09:00:00',
         location: 'Ruang Lama',
         mode: 'offline',
-        panelUserIds: [$examinerOne->id, $examinerTwo->id],
+        panelUserIds: [$supervisor->id, $examinerOne->id, $examinerTwo->id],
         scheduledUntil: '2026-07-01 09:00:00',
     );
 

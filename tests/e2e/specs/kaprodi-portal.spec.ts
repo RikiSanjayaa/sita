@@ -239,7 +239,7 @@ test.describe('Kaprodi portal', () => {
 
     test('kaprodi schedules a sidang for a student whose supervisors were just assigned', async ({
         page,
-    }) => {
+    }, testInfo) => {
         await page.goto('/kaprodi/sempro-sidang');
         await page.getByRole('button', { name: /^Jadwalkan Sidang/ }).click();
 
@@ -247,6 +247,33 @@ test.describe('Kaprodi portal', () => {
         await expect(dialog).toBeVisible();
 
         await chooseStudentInDialog(page, withoutSupervisors.studentName);
+        const save = dialog.getByRole('button', { name: 'Simpan Jadwal' });
+        const capturePanel = async (count: number) => {
+            for (const width of [1280, 390]) {
+                await page.setViewportSize({ width, height: 920 });
+                for (const theme of ['light', 'dark']) {
+                    await page.evaluate(
+                        (mode) =>
+                            document.documentElement.classList.toggle(
+                                'dark',
+                                mode === 'dark',
+                            ),
+                        theme,
+                    );
+                    await save.scrollIntoViewIfNeeded();
+                    await testInfo.attach(`panel-${count}-${width}-${theme}`, {
+                        body: await page.screenshot(),
+                        contentType: 'image/png',
+                    });
+                }
+            }
+            await page.setViewportSize({ width: 1280, height: 920 });
+        };
+        await expect(save).toBeDisabled();
+        await expect(save).toHaveAccessibleDescription(
+            'Tambahkan 2 penguji (0/2).',
+        );
+        await capturePanel(0);
         // Both supervisors from the previous test belong to the panel.
         await expect(
             dialog.getByText(/Pembimbing 1.*Budi/).first(),
@@ -271,8 +298,25 @@ test.describe('Kaprodi portal', () => {
         await page
             .getByRole('button', { name: /Prof\. Ahmad Hidayat/ })
             .click();
+        await expect(save).toBeDisabled();
+        await expect(save).toHaveAccessibleDescription(
+            'Tambahkan 1 penguji (1/2).',
+        );
+        await expect(
+            dialog.getByText('1 dari minimal 2 penguji'),
+        ).toBeVisible();
+        await capturePanel(1);
+        await dialog
+            .getByPlaceholder('Cari dosen penguji (min. 2 karakter)...')
+            .fill('Dewi');
+        await page.getByRole('button', { name: /Dr\. Dewi Lestari/ }).click();
 
-        await dialog.getByRole('button', { name: 'Simpan Jadwal' }).click();
+        await expect(save).toBeEnabled();
+        await expect(
+            dialog.getByText('2 dari minimal 2 penguji'),
+        ).toBeVisible();
+        await capturePanel(2);
+        await save.click();
         await expect(page.getByRole('dialog')).toHaveCount(0);
 
         await page
@@ -282,6 +326,7 @@ test.describe('Kaprodi portal', () => {
         await expect(row).toContainText('Dr. Budi Santoso');
         await expect(row).toContainText('Dr. Ratna Kusuma');
         await expect(row).toContainText('Prof. Ahmad Hidayat');
+        await expect(row).toContainText('Dr. Dewi Lestari');
     });
 
     test('dosen prodi lists supervision load and kaprodi changes a quota', async ({

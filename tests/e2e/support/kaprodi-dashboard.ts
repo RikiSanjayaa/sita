@@ -13,9 +13,14 @@ import { playwrightEnvironment, repositoryRoot } from './db';
  *
  * - populated: every queue item, an agenda and all capabilities.
  * - all-clear: an empty program studi.
+ * - single-finalization: one active exam and one historical exam with the same status.
  * - restricted: the populated data, but the kaprodi may only view documents.
  */
-export type KaprodiDashboardScenario = 'populated' | 'all-clear' | 'restricted';
+export type KaprodiDashboardScenario =
+    | 'populated'
+    | 'all-clear'
+    | 'restricted'
+    | 'single-finalization';
 
 export type KaprodiDashboardFixture = {
     scenario: KaprodiDashboardScenario;
@@ -38,8 +43,9 @@ export type QueueExpectation = {
 };
 
 export const dashboardNames = {
-    awaitingA: 'Aldo Finalisasi Dashboard',
-    awaitingB: 'Bella Finalisasi Dashboard',
+    awaitingA: 'Aldo Pratama Mahendra Putra Finalisasi Dashboard',
+    awaitingB: 'Bella Ayu Maharani Prameswari Finalisasi Dashboard',
+    historicalFinalization: 'Cahya Riwayat Finalisasi Dashboard',
     lapsedA: 'Citra Masa Habis Dashboard',
     lapsedB: 'Dimas Masa Habis Dashboard',
     noSupervisor: 'Elok Tanpa Pembimbing Dashboard',
@@ -169,6 +175,7 @@ function setupCode(
         email,
         programName,
         populated: scenario !== 'all-clear',
+        singleFinalization: scenario === 'single-finalization',
         capabilities: scenario === 'restricted' ? ['view_documents'] : null,
         names: dashboardNames,
     });
@@ -210,6 +217,14 @@ function setupCode(
                 App\\Models\\ThesisDefenseExaminer::query()->create(['defense_id' => $defense->id, 'lecturer_user_id' => $lecturer->id, 'role' => 'examiner', 'order_no' => 1, 'decision' => 'pending']);
                 return $defense;
             };
+
+            if ($cfg['singleFinalization']) {
+                [$record, $title] = $make(0, $n['awaitingA'], 'sempro', true);
+                $defend($record, $title, 1, 'awaiting_finalization', $wita(-1, 10), 'Ruang Finalisasi');
+                [$historical, $historicalTitle] = $make(1, $n['historicalFinalization'], 'completed', false, ['state' => 'completed', 'completed_at' => now()->subDays(5)]);
+                $defend($historical, $historicalTitle, 1, 'awaiting_finalization', $wita(-10, 10), 'Ruang Riwayat');
+                return;
+            }
 
             foreach (['awaitingA', 'awaitingB'] as $i => $key) {
                 [$record, $title] = $make($i, $n[$key], 'sempro', true);

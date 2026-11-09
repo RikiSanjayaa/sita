@@ -119,7 +119,7 @@ Status tersebut berlaku untuk alur yang disebut pada barisnya, bukan seluruh cab
 
 | Flow (menu)                                                                                                                                                             | Spec                                          | Status   | Priority |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- | -------- | -------- |
-| Dashboard: "Perlu tindakan" di atas dengan item unggulan netral (satu nama "Terkait:" paling banyak) dan item sekunder tanpa nama; urutan, jumlah, tombol dan tautan terfilter nyata ke daftar mahasiswa, ujian dan dosen, serta tombol Jadwalkan membuka dialog (issue #32). Fixture terisolasi: terisi, semua beres | `kaprodi-dashboard`, Pest `KaprodiDashboardTest` | tercakup | P1 |
+| Dashboard: "Perlu tindakan" di atas dengan satu nama pada kartu unggulan dan "dan N lainnya" bila antrean lebih besar. Kondisi 0, 1, dan banyak, serta total dan tautan menuju antrean finalisasi yang sama. Kartu sekunder tanpa nama, urutan aksi dan kapabilitas tetap diuji (issue #32, PR #192) | `kaprodi-dashboard`, Pest `KaprodiDashboardTest` | tercakup | P1 |
 | Dashboard: ringkasan prodi (4 tile bernilai nyata, tetap ada saat nol, tautan ke tujuan terfilter), agenda "Hari ini & 7 hari ke depan" (label hari, jam WITA), "Progres mahasiswa", fase, arsip; tata letak 390/768/1280px (aksi dulu di ponsel, ringkasan 2x2, ringkasan di atas dan agenda di samping di desktop), tanpa overflow, target 44px, urutan fokus keyboard mengikuti urutan baca | `kaprodi-dashboard` | tercakup | P2 |
 | Dashboard: tautan menu sidebar | `kaprodi-portal` | tercakup | P2 |
 | Mahasiswa Prodi: filter tindakan (`?activeFocus=`) dari dashboard (issue #32) | `kaprodi-dashboard` | tercakup | P2 |
@@ -145,6 +145,11 @@ Status tersebut berlaku untuk alur yang disebut pada barisnya, bukan seluruh cab
 | Kaprodi: badge OBE (issue #6) | Pest only (`UserObeCurriculumTest`, `KaprodiPortalTest`) | belum | P3 |
 
 ## Admin (Filament `/admin`) and super admin
+
+| Regresi PR #192 | Spec | Cakupan | Prioritas |
+| --- | --- | --- | --- |
+| NIDN sendiri bisa disimpan, NIDN dosen lain ditolak inline tanpa membuang draf; fokus completed/arsip/cancelled; menu Rekap stabil lintas tab dan posisi ikon cetak/Word sejajar pada tiga status | `admin-review-polish`, Pest `DosenNidnTest`, `ThesisProjectResourceTest` | tercakup | P1 |
+| Rekap Admin/Kaprodi: pilihan periode standar, rentang manual, proses menonaktifkan unduhan ganda, pesan kosong, sukses dan panel lama teridentifikasi tanpa unduhan parsial tersembunyi | `sidang-paper`, Pest `SidangPaperWorkflowTest` | tercakup | P1 |
 
 | Flow (menu / resource)                                                                                           | Spec                                                                                   | Status   | Priority |
 | ---------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | -------- | -------- |
@@ -194,6 +199,7 @@ Status tersebut berlaku untuk alur yang disebut pada barisnya, bukan seluruh cab
 | Search dan filter tabel setelah scroll nyata: kaprodi, dosen, mahasiswa dan publik; desktop sticky expanded/collapsed, mobile static dengan dialog Terapkan untuk semua filter, light/dark (#94/#167) | `table-sticky-filters`, `dosen-prodi-roles` | tercakup | P1 |
 | Baris tabel mobile ringkas di 390px (identitas dan aksi satu baris, meta sebaris), desktop tetap tabel (#129) | `compact-mobile-rows` | tercakup | P2 |
 | Tugas akhir cancelled/tergantikan tidak bocor di direktori, profil dan payload non-admin; publikasi completed terkini tetap tampil (#95)                                                                                                                                                                                                  | `project-visibility`, `profile-active-examiners`, plus Pest (`ProjectVisibilityTest`, `ProfileShowTest`) | tercakup | P1       |
+| Nilai Sidang satu sumber, koreksi Dosen, pencocokan nilai di panel Admin, kembali ke filter Kaprodi, konflik isian lama, penguncian final, dan label hasil per peran | `sidang-scores`, `golden-path`, Pest `SidangPaperWorkflowTest` dan `SidangScoreTest` | tercakup | P1 |
 
 ## Known gaps worth closing next
 
@@ -221,6 +227,8 @@ Arti bukti pada tabel ini:
 | Sidang lulus bersyarat sampai revisi diverifikasi dan mahasiswa lulus | UI penuh: `thesis-recovery`; UI keputusan panel: `dosen-penilaian`; Pest aturan revisi | Panel menilai, admin memfinalisasi bersyarat, mahasiswa menanggapi dan mengunggah naskah. Penguji menolak butir dan menambah butir untuk putaran kedua, lalu menerima semuanya. Kedua putaran tersimpan; verifikasi terakhir menyelesaikan skripsi dan mengubah status topik publik menjadi Selesai. Topik yang masih direvisi belum ditandai selesai. |
 | Sempro/Sidang tidak lulus lalu ujian ulang | UI penuh: `thesis-recovery`; spec lama `admin-sempro`/`admin-sidang` tetap campuran | Dosen menilai kedua attempt, admin menetapkan gagal, membuat jadwal ulang lewat kalender/jam/pemilih penguji dan memfinalisasi lulus. Revisi Sempro ditanggapi mahasiswa dan diterima penguji. Attempt gagal tetap terbaca pada mahasiswa dan dosen; Sidang lulus menutup skripsi. Ini tidak mengubah klaim transisi service/Tinker pada spec lama. |
 | Jadwal bimbingan ditolak, dibatalkan atau dijadwalkan ulang | UI: `jadwal-bimbingan`, `bimbingan-chat` | Tercakup untuk jadwal; bukan bukti pembatalan seluruh tugas akhir. |
+| Berkas Sidang dan rekap prodi | UI: `sidang-paper`, `sidang-settings`, `golden-path`; Pest: `SidangPaperWorkflowTest`, `SidangSkVersionTest` | Word, PDF dan Excel, akses per prodi, kalender, filter, pintasan sesuai panel, dan template. Koreksi individual No SK final oleh Admin/Kaprodi, konfirmasi, batal, riwayat, penolakan versi lama, nilai tetap terkunci, dan Excel memakai nomor terbaru. |
+| Pengaturan dan validasi panel sidang seluruh prodi | UI: `sidang-settings`, `kaprodi-portal`, `golden-path`; Pest: `Support/SidangSettingsTest`, `SidangPaperWorkflowTest`, `KaprodiPortalTest`, `ThesisProjectAdminServiceTest` | Minimal dua penguji dan satu pembimbing aktif; pengaturan lama 0/1 tidak membuka jalur satu penguji, minimum lebih tinggi dipertahankan. Warning non-Ilkom dan panel lama dibedakan dari template. Error mempertahankan draf, dosen yang sudah menilai tetap di panel, jadwal Menunggu Finalisasi dan hasil final terkunci. Monitoring tidak mengganti nilai berbobot dengan rata-rata; snapshot final eksplisit dipertahankan. |
 
 Bukti baseline: isi spec dan artefak [CI PR #139, run 40162543429](https://github.com/RikiSanjayaa/sita/actions/runs/40162543429) diperiksa; skenario E2E yang diaudit lulus tanpa retry. Ini bukti historis untuk cakupan di atas, bukan jaminan semua edge case tercakup. Bootstrap shard 3 sempat retry, terpisah dari skenario tersebut.
 

@@ -23,6 +23,33 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
+it('shows lifecycle context before active workflow warnings in the admin focus', function (string $state, bool $archived, string $message): void {
+    $student = User::factory()->asMahasiswa()->create();
+    $project = ensureActiveThesisProject($student);
+    $project->update([
+        'phase' => $state === 'completed' ? 'completed' : 'research',
+        'state' => $state,
+        'archived_at' => $archived ? now() : null,
+    ]);
+    $this->actingAs(User::factory()->asSuperAdmin()->create());
+
+    Livewire::test(ViewThesisProject::class, ['record' => $project->getRouteKey()])
+        ->assertSeeText($message)
+        ->assertDontSeeText('Belum ada pembimbing aktif yang tercatat.')
+        ->assertSeeText('Monitoring Saja');
+})->with([
+    'completed' => ['completed', false, 'sudah selesai. Data ini tersedia untuk monitoring dan rekap hasil.'],
+    'archived' => ['completed', true, 'diarsipkan. Data ini tersedia untuk melihat riwayat.'],
+    'cancelled' => ['cancelled', false, 'dibatalkan. Data ini tersedia untuk melihat riwayat.'],
+]);
+
+it('still flags a missing active supervisor on an active project', function (): void {
+    $project = ensureActiveThesisProject(User::factory()->asMahasiswa()->create());
+    $this->actingAs(User::factory()->asSuperAdmin()->create());
+    Livewire::test(ViewThesisProject::class, ['record' => $project->getRouteKey()])
+        ->assertSeeText('Belum ada pembimbing aktif yang tercatat.');
+});
+
 test('admin can only see thesis projects from their prodi', function (): void {
     $prodiA = ProgramStudi::factory()->create(['name' => 'Ilmu Komputer']);
     $prodiB = ProgramStudi::factory()->create(['name' => 'Teknologi Informasi']);
@@ -403,6 +430,7 @@ test('admin can edit scheduled sidang from schedule action and notify panel', fu
     $primarySupervisor = User::factory()->asDosen()->create();
     $secondarySupervisor = User::factory()->asDosen()->create();
     $examiner = User::factory()->asDosen()->create();
+    $secondExaminer = User::factory()->asDosen()->create();
 
     AdminProfile::query()->create([
         'user_id' => $admin->id,
@@ -414,7 +442,7 @@ test('admin can edit scheduled sidang from schedule action and notify panel', fu
         'is_active' => true,
     ]);
 
-    foreach ([$primarySupervisor, $secondarySupervisor, $examiner] as $lecturer) {
+    foreach ([$primarySupervisor, $secondarySupervisor, $examiner, $secondExaminer] as $lecturer) {
         DosenProfile::factory()->create([
             'user_id' => $lecturer->id,
             'program_studi_id' => $prodi->id,
@@ -465,7 +493,7 @@ test('admin can edit scheduled sidang from schedule action and notify panel', fu
         scheduledFor: now()->addWeek()->setTime(9, 0)->format('Y-m-d H:i:s'),
         location: 'Ruang Lama',
         mode: 'offline',
-        panelUserIds: [$primarySupervisor->id, $secondarySupervisor->id, $examiner->id],
+        panelUserIds: [$primarySupervisor->id, $secondarySupervisor->id, $examiner->id, $secondExaminer->id],
         scheduledUntil: now()->addWeek()->setTime(9, 0)->format('Y-m-d H:i:s'),
     );
 
@@ -484,7 +512,7 @@ test('admin can edit scheduled sidang from schedule action and notify panel', fu
             'scheduled_at_time' => '09:00',
             'location' => 'Ruang Baru',
             'mode' => 'hybrid',
-            'additional_examiner_user_ids' => [$examiner->id],
+            'additional_examiner_user_ids' => [$examiner->id, $secondExaminer->id],
             'notes' => 'Jadwal dipindahkan.',
         ])
         ->assertActionDataSet([

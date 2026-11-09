@@ -5,9 +5,12 @@ namespace App\Filament\Resources\Users\Pages;
 use App\Filament\Resources\Users\UserResource;
 use App\Services\UserProvisioningService;
 use Filament\Resources\Pages\CreateRecord;
+use Illuminate\Validation\ValidationException;
 
 class CreateUser extends CreateRecord
 {
+    protected ?bool $hasDatabaseTransactions = true;
+
     protected static string $resource = UserResource::class;
 
     protected array $provisioningData = [];
@@ -24,6 +27,7 @@ class CreateUser extends CreateRecord
             'academic_assignments' => $data['academic_assignments'] ?? [],
             'angkatan' => $data['angkatan'] ?? null,
             'nik' => $data['nik'] ?? null,
+            'sidang_nidn' => $data['sidang_nidn'] ?? null,
             'supervision_quota' => $data['supervision_quota'] ?? null,
             'is_active' => $data['is_active'] ?? true,
             'is_obe_curriculum' => (bool) ($data['is_obe_curriculum'] ?? false),
@@ -39,6 +43,7 @@ class CreateUser extends CreateRecord
             $data['academic_assignments'],
             $data['angkatan'],
             $data['nik'],
+            $data['sidang_nidn'],
             $data['supervision_quota'],
             $data['is_active'],
             $data['is_obe_curriculum'],
@@ -52,9 +57,11 @@ class CreateUser extends CreateRecord
         /** @var \App\Models\User $user */
         $user = $this->record;
 
-        app(UserProvisioningService::class)->syncRoleAndProfiles(
-            $user,
-            $this->provisioningData,
-        );
+        try {
+            app(UserProvisioningService::class)->syncRoleAndProfiles($user, $this->provisioningData);
+        } catch (ValidationException $exception) {
+            throw ValidationException::withMessages(collect($exception->errors())
+                ->mapWithKeys(fn (array $messages, string $field): array => ['data.'.$field => $messages])->all());
+        }
     }
 }

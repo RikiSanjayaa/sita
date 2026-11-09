@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Dosen;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Dosen\SubmitDefenseDecisionRequest;
+use App\Http\Requests\Dosen\UpdateDefenseScoreRequest;
 use App\Http\Requests\Dosen\VerifyRevisionRequest;
 use App\Models\MentorshipChatThread;
 use App\Models\ThesisDefense;
@@ -13,12 +14,14 @@ use App\Models\ThesisRevision;
 use App\Models\ThesisRevisionRound;
 use App\Services\DosenScheduleWorkspaceService;
 use App\Services\DosenThesisWorkspaceService;
+use App\Services\SidangScoreService;
 use App\Services\ThesisDefenseExaminerDecisionService;
 use App\Services\ThesisDefenseRevisionService;
 use App\Services\ThesisProjectNoteService;
 use App\Services\ThesisRevisionRoundService;
 use App\Support\AcademicTerminology;
 use App\Support\DefenseRevisionLog;
+use App\Support\SidangDocumentTemplate;
 use App\Support\ThesisRevisionPayload;
 use App\Support\WitaDateTime;
 use Illuminate\Http\RedirectResponse;
@@ -64,6 +67,7 @@ class SeminarProposalController extends Controller
         $defenses = $examinerRecords->map(function (ThesisDefenseExaminer $examiner) use ($lecturer, $examThreads, $privateThreads): array {
             $defense = $examiner->defense;
             $project = $defense?->project;
+            $summary = app(SidangScoreService::class)->summary($defense);
             $student = $project?->student;
             $title = $project?->latestTitle;
             $terminology = $project === null
@@ -78,6 +82,7 @@ class SeminarProposalController extends Controller
                     'order' => $item->order_no,
                     'decision' => $item->decision,
                     'score' => $item->score,
+                    'scoreSource' => $item->score_source,
                 ])
                 ->values()
                 ->all() ?? [];
@@ -92,6 +97,10 @@ class SeminarProposalController extends Controller
                 && (int) $thread->context_id === (int) $defense->id
                 && (int) $thread->student_user_id === (int) $student?->id);
             $privateThread = $privateThreads->first(fn (MentorshipChatThread $thread): bool => $thread->participants->contains('user_id', $student?->id));
+            $canPrint = $defense?->type === 'sidang'
+                && $defense->scheduled_for !== null
+                && $defense->status !== 'cancelled'
+                && SidangDocumentTemplate::forProgram($project?->programStudi) !== null;
 
             return [
                 'defenseId' => $defense?->id,
@@ -109,6 +118,12 @@ class SeminarProposalController extends Controller
                 'titleEn' => $title?->title_en ?? '-',
                 'defenseStatus' => $defense?->status,
                 'defenseResult' => $defense?->result,
+                'paperScore' => $summary['value'] ?? null,
+                'paperGrade' => $summary['grade'] ?? null,
+                'paperUrl' => $canPrint
+                    ? route('sidang.paper.download', $defense) : null,
+                'paperPrintUrl' => $canPrint
+                    ? route('sidang.paper.preview', $defense) : null,
                 'scheduledFor' => WitaDateTime::formatOrNull($defense?->scheduled_for),
                 'scheduledAt' => $defense?->scheduled_for?->toIso8601String(),
                 'location' => $defense?->location ?? '-',
@@ -145,6 +160,8 @@ class SeminarProposalController extends Controller
                 'myOrder' => $examiner->order_no,
                 'myDecision' => $examiner->decision,
                 'myScore' => $examiner->score,
+                'myScoreSource' => $examiner->score_source,
+                'canEditScore' => app(SidangScoreService::class)->editable($defense),
                 'myDecisionNotes' => $examiner->notes,
                 'myRevisionNotes' => $examiner->revision_notes,
                 'myRevisionItems' => collect($examiner->revision_items ?? [])
@@ -200,6 +217,13 @@ class SeminarProposalController extends Controller
 
         return redirect()->route('dosen.seminar-proposal')
             ->with('success', 'Keputusan berhasil disimpan.');
+    }
+
+    public function updateScore(UpdateDefenseScoreRequest $request, ThesisDefense $defense, SidangScoreService $scores): RedirectResponse
+    {
+        $scores->correct($request->user(), $defense, $request->validated());
+
+        return back()->with('success', 'Nilai berhasil diperbarui.');
     }
 
     public function verifyRevision(VerifyRevisionRequest $request, ThesisRevision $revision): RedirectResponse

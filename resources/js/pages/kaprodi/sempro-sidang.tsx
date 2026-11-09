@@ -3,6 +3,7 @@ import {
     CalendarClock,
     CheckCircle2,
     Clock,
+    Download,
     Eye,
     FileWarning,
     Inbox,
@@ -10,11 +11,12 @@ import {
     MoreHorizontal,
     Pencil,
     Plus,
+    Printer,
     Star,
     User,
     XCircle,
 } from 'lucide-react';
-import { useEffect, useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState, type FormEvent } from 'react';
 
 import { type BimbinganEvent } from '@/components/bimbingan-calendar';
 import { CollapsibleCalendarSection } from '@/components/collapsible-calendar-section';
@@ -43,6 +45,7 @@ import { PageHeader } from '@/components/patterns/page-header';
 import { StatusBadge } from '@/components/patterns/status-badge';
 import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
 import { ScheduleDetailDrawer } from '@/components/schedule-detail-drawer';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -68,6 +71,13 @@ import {
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import {
     Sheet,
     SheetContent,
     SheetDescription,
@@ -82,6 +92,8 @@ import {
     type AcademicTerminology,
 } from '@/lib/academic-terminology';
 import { cn } from '@/lib/utils';
+import { report } from '@/routes/sidang';
+import { show as showSidangPaper } from '@/routes/sidang/paper';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 
 type ProgramStudi = {
@@ -104,10 +116,14 @@ type ExamRow = {
     typeKey: string;
     status: string;
     statusKey: string;
+    inFinalizationQueue: boolean;
     result: string;
     averageScore: number | null;
     scoreRequired: boolean;
     grade: string | null;
+    paperRecorded: boolean;
+    paperPanelHint: string | null;
+    readyForReport: boolean;
     student: string;
     terminology: AcademicTerminology;
     nim: string | null;
@@ -169,7 +185,11 @@ type SemproSidangProps = {
     programStudi: ProgramStudi;
     exams: ExamRow[];
     schedulableProjects: SchedulableProject[];
+    minimumPaperExaminers: number;
+    programWarning: string | null;
     calendarEvents: BimbinganEvent[];
+    reportPeriods: { id: number; label: string; range: string }[];
+    activeReportPeriodId: number | null;
 };
 
 type TypeFilter = 'semua' | 'sempro' | 'sidang';
@@ -183,6 +203,18 @@ type ScheduleDialogState = {
     project?: SchedulableProject;
     exam?: ExamRow;
 };
+
+function ProgramWarningNotice({ message }: { message: string | null }) {
+    if (!message) return null;
+
+    return (
+        <Alert variant="warning">
+            <FileWarning aria-hidden />
+            <AlertTitle>Acuan sidang prodi belum diverifikasi</AlertTitle>
+            <AlertDescription>{message}</AlertDescription>
+        </Alert>
+    );
+}
 
 function requestedScheduleType(): 'sempro' | 'sidang' | null {
     if (typeof window === 'undefined') {
@@ -291,8 +323,17 @@ function DecisionBadge({ decision }: { decision: string }) {
 }
 
 export default function KaprodiSemproSidangPage() {
-    const { auth, programStudi, exams, schedulableProjects, calendarEvents } =
-        usePage<SharedData & SemproSidangProps>().props;
+    const {
+        auth,
+        programStudi,
+        exams,
+        schedulableProjects,
+        minimumPaperExaminers,
+        programWarning,
+        calendarEvents,
+        reportPeriods,
+        activeReportPeriodId,
+    } = usePage<SharedData & SemproSidangProps>().props;
     const terms = neutralAcademicTerminology;
     const canScheduleSempro = auth.kaprodiCapabilities?.schedule_sempro ?? true;
     const canScheduleSidang = auth.kaprodiCapabilities?.schedule_sidang ?? true;
@@ -307,6 +348,75 @@ export default function KaprodiSemproSidangPage() {
     );
     const pageState = useUrlState('page', 1);
     const [selected, setSelected] = useState<ExamRow | null>(null);
+    const [showReport, setShowReport] = useState(false);
+    const [reportBusy, setReportBusy] = useState(false);
+    const [reportError, setReportError] = useState('');
+    const [reportStatus, setReportStatus] = useState('');
+    const [reportPeriod, setReportPeriod] = useState(
+        activeReportPeriodId === null ? '' : String(activeReportPeriodId),
+    );
+    const [reportDates, setReportDates] = useState({ from: '', to: '' });
+
+    async function downloadReport(event: FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+        if (reportBusy) return;
+        if (reportPeriod === '' && !reportDates.from) {
+            setReportStatus('');
+            setReportError('Pilih rentang tanggal sidang.');
+            return;
+        }
+        const body = new FormData(event.currentTarget);
+        setReportBusy(true);
+        setReportError('');
+        setReportStatus('');
+        try {
+            const response = await fetch(report.url(), {
+                method: 'POST',
+                headers: { Accept: 'application/json' },
+                body,
+            });
+            if (!response.ok) {
+                const result = await response.json().catch(() => null);
+                throw new Error(
+                    response.status === 422 &&
+                        typeof result?.message === 'string'
+                        ? result.message
+                        : 'Excel belum bisa diunduh. Coba lagi.',
+                );
+            }
+            if (
+                !response.headers
+                    .get('content-disposition')
+                    ?.includes('attachment')
+            ) {
+                throw new Error(
+                    'Excel belum bisa diunduh. Muat ulang halaman jika sesi sudah berakhir.',
+                );
+            }
+            const url = URL.createObjectURL(await response.blob());
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'rekap-nilai-sidang.xlsx';
+            link.click();
+            window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+            setReportStatus('Unduhan Excel dimulai.');
+        } catch (error) {
+            setReportError(
+                error instanceof Error && !(error instanceof TypeError)
+                    ? error.message
+                    : 'Excel belum bisa diunduh. Coba lagi.',
+            );
+        } finally {
+            setReportBusy(false);
+        }
+    }
+
+    function changeReportOpen(open: boolean) {
+        if (reportBusy) return;
+        setReportError('');
+        setReportStatus('');
+        setShowReport(open);
+    }
     const [selectedEvent, setSelectedEvent] = useState<BimbinganEvent | null>(
         null,
     );
@@ -350,10 +460,16 @@ export default function KaprodiSemproSidangPage() {
                     .toLowerCase()
                     .includes(query);
 
+            const matchesStatus =
+                statusFilter === 'awaiting_finalization'
+                    ? exam.inFinalizationQueue
+                    : statusFilter === 'semua' ||
+                      exam.statusKey === statusFilter;
+
             return (
                 matchesSearch &&
                 (typeFilter === 'semua' || exam.typeKey === typeFilter) &&
-                (statusFilter === 'semua' || exam.statusKey === statusFilter)
+                matchesStatus
             );
         });
     }, [exams, search, statusFilter, typeFilter]);
@@ -391,9 +507,7 @@ export default function KaprodiSemproSidangPage() {
             {
                 label: 'Finalisasi',
                 value: 'awaiting_finalization',
-                count: exams.filter(
-                    (exam) => exam.statusKey === 'awaiting_finalization',
-                ).length,
+                count: exams.filter((exam) => exam.inFinalizationQueue).length,
             },
             {
                 label: 'Selesai',
@@ -463,6 +577,16 @@ export default function KaprodiSemproSidangPage() {
                                     Jadwalkan {terms.finalExam}
                                 </Button>
                             ) : null}
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="max-md:h-11 max-md:flex-1"
+                                onClick={() => setShowReport(true)}
+                            >
+                                <Download className="size-4" aria-hidden />{' '}
+                                Rekap Nilai Sidang
+                            </Button>
                         </DataToolbar>
 
                         <div className="flex flex-col gap-y-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3 sm:gap-y-2">
@@ -486,6 +610,10 @@ export default function KaprodiSemproSidangPage() {
                             />
                         </div>
                     </StickyFilterBar>
+
+                    {typeFilter !== 'sempro' && (
+                        <ProgramWarningNotice message={programWarning} />
+                    )}
 
                     {filtered.length === 0 ? (
                         <DataTableEmptyState
@@ -628,6 +756,20 @@ export default function KaprodiSemproSidangPage() {
                                                         ),
                                                     )}
                                                 </ul>
+                                                {item.paperPanelHint && (
+                                                    <p className="mt-2 text-xs text-warning-muted-foreground">
+                                                        {item.statusKey ===
+                                                        'completed'
+                                                            ? 'Panel tidak memenuhi kebutuhan rekap nilai. Hasil final tidak dapat diubah atau dibuka kembali.'
+                                                            : item.statusKey ===
+                                                                'awaiting_finalization'
+                                                              ? 'Panel tidak memenuhi kebutuhan rekap nilai. Jadwal dan panel tidak dapat diubah selama finalisasi. Lanjutkan melalui alur keputusan dan finalisasi yang tersedia.'
+                                                              : item.statusKey ===
+                                                                  'cancelled'
+                                                                ? 'Panel sidang belum lengkap. Sidang ini sudah dibatalkan.'
+                                                                : 'Panel sidang belum lengkap. Lengkapi melalui Ubah Jadwal dengan mempertahankan dosen yang sudah dinilai.'}
+                                                    </p>
+                                                )}
                                             </td>
                                             <td
                                                 data-label="Nilai"
@@ -731,6 +873,36 @@ export default function KaprodiSemproSidangPage() {
                                                                 Lihat detail
                                                                 ujian
                                                             </DropdownMenuItem>
+                                                            {item.typeKey ===
+                                                                'sidang' &&
+                                                                item.statusKey !==
+                                                                    'cancelled' && (
+                                                                    <DropdownMenuItem
+                                                                        asChild
+                                                                    >
+                                                                        <Link
+                                                                            href={
+                                                                                showSidangPaper(
+                                                                                    item.id,
+                                                                                    {
+                                                                                        query: {
+                                                                                            search,
+                                                                                            type: typeFilter,
+                                                                                            status: statusFilter,
+                                                                                            page: pageState[0],
+                                                                                        },
+                                                                                    },
+                                                                                )
+                                                                                    .url
+                                                                            }
+                                                                        >
+                                                                            <Printer className="size-4" />
+                                                                            Kelola
+                                                                            berkas
+                                                                            sidang
+                                                                        </Link>
+                                                                    </DropdownMenuItem>
+                                                                )}
                                                             <DropdownMenuItem
                                                                 asChild
                                                             >
@@ -757,6 +929,168 @@ export default function KaprodiSemproSidangPage() {
                 </DataSection>
             </div>
 
+            <Dialog open={showReport} onOpenChange={changeReportOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Rekap Nilai Sidang</DialogTitle>
+                        <DialogDescription>
+                            File mengikuti filter daftar ujian dan memuat sidang
+                            lulus yang sudah final dengan tiga nilai lengkap.
+                            Periode dihitung dari tanggal sidang dalam WITA.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <ProgramWarningNotice message={programWarning} />
+                    {filtered.some(
+                        (exam) =>
+                            exam.typeKey === 'sidang' &&
+                            exam.statusKey === 'completed' &&
+                            exam.paperPanelHint,
+                    ) && (
+                        <Alert variant="warning">
+                            <FileWarning aria-hidden />
+                            <AlertTitle>
+                                Panel sidang final belum lengkap
+                            </AlertTitle>
+                            <AlertDescription>
+                                Daftar ini memuat sidang final yang tidak
+                                memiliki panel penilai yang diperlukan untuk
+                                rekap nilai. Hasil final tidak dapat diubah atau
+                                dibuka kembali.
+                            </AlertDescription>
+                        </Alert>
+                    )}
+                    <form
+                        method="post"
+                        action={report.url()}
+                        onSubmit={downloadReport}
+                        aria-busy={reportBusy}
+                        className="space-y-4"
+                    >
+                        <input
+                            type="hidden"
+                            name="_token"
+                            value={
+                                typeof document === 'undefined'
+                                    ? ''
+                                    : (document.querySelector<HTMLMetaElement>(
+                                          'meta[name="csrf-token"]',
+                                      )?.content ?? '')
+                            }
+                        />
+                        <input
+                            type="hidden"
+                            name="ids"
+                            value={
+                                filtered.map((exam) => exam.id).join(',') || '0'
+                            }
+                        />
+                        {reportPeriods.length > 0 && (
+                            <div className="space-y-1">
+                                <label
+                                    htmlFor="rekap-periode"
+                                    className="text-sm font-medium"
+                                >
+                                    Periode rekap
+                                </label>
+                                <input
+                                    type="hidden"
+                                    name="period_id"
+                                    value={reportPeriod}
+                                />
+                                <Select
+                                    value={reportPeriod || 'manual'}
+                                    disabled={reportBusy}
+                                    onValueChange={(value) =>
+                                        setReportPeriod(
+                                            value === 'manual' ? '' : value,
+                                        )
+                                    }
+                                >
+                                    <SelectTrigger id="rekap-periode">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="manual">
+                                            Rentang tanggal manual
+                                        </SelectItem>
+                                        {reportPeriods.map((period) => (
+                                            <SelectItem
+                                                key={period.id}
+                                                value={String(period.id)}
+                                            >
+                                                {period.label} ({period.range})
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
+                        {reportPeriod === '' && (
+                            <>
+                                <input
+                                    type="hidden"
+                                    name="from"
+                                    value={reportDates.from}
+                                />
+                                <input
+                                    type="hidden"
+                                    name="until"
+                                    value={reportDates.to}
+                                />
+                                <div className="space-y-1">
+                                    <span className="text-sm font-medium">
+                                        Rentang tanggal sidang
+                                    </span>
+                                    <DateRangePicker
+                                        ariaLabel="Rentang tanggal sidang"
+                                        numberOfMonths={1}
+                                        startDate={reportDates.from}
+                                        endDate={reportDates.to}
+                                        onChange={setReportDates}
+                                        disabled={reportBusy}
+                                    />
+                                </div>
+                                <label className="block space-y-1 text-sm font-medium">
+                                    Nama periode
+                                    <Input
+                                        name="period"
+                                        disabled={reportBusy}
+                                        placeholder="Contoh: Ganjil 2026/2027"
+                                        maxLength={80}
+                                    />
+                                </label>
+                            </>
+                        )}
+                        {reportError && (
+                            <p role="alert" className="text-sm text-foreground">
+                                {reportError}
+                            </p>
+                        )}
+                        <p
+                            role="status"
+                            className="text-sm text-muted-foreground empty:hidden"
+                        >
+                            {reportBusy
+                                ? 'Menyiapkan file Excel...'
+                                : reportStatus}
+                        </p>
+                        <DialogFooter>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                disabled={reportBusy}
+                                onClick={() => changeReportOpen(false)}
+                            >
+                                Batal
+                            </Button>
+                            <Button type="submit" disabled={reportBusy}>
+                                <Download className="size-4" aria-hidden />{' '}
+                                Unduh Excel
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
             <ExamDetailSheet
                 item={selected}
                 open={selected !== null}
@@ -775,6 +1109,8 @@ export default function KaprodiSemproSidangPage() {
             <ScheduleDialog
                 state={scheduleDialog}
                 projects={schedulableProjects}
+                minimumPaperExaminers={minimumPaperExaminers}
+                programWarning={programWarning}
                 open={scheduleDialog !== null}
                 onOpenChange={(open) => {
                     if (!open) setScheduleDialog(null);
@@ -843,6 +1179,28 @@ function ExamDetailSheet({
                             </div>
                         </div>
 
+                        {item.paperPanelHint && (
+                            <Alert variant="warning">
+                                <FileWarning aria-hidden />
+                                <AlertTitle>
+                                    Panel sidang belum lengkap
+                                </AlertTitle>
+                                <AlertDescription>
+                                    <p>{item.paperPanelHint}</p>
+                                    <p>
+                                        {item.statusKey === 'completed'
+                                            ? 'Panel ini tidak memenuhi kebutuhan rekap nilai. Hasil final tidak dapat diubah atau dibuka kembali.'
+                                            : item.statusKey ===
+                                                'awaiting_finalization'
+                                              ? 'Panel ini tidak memenuhi kebutuhan rekap nilai. Jadwal dan panel tidak dapat diubah selama finalisasi. Lanjutkan melalui alur keputusan dan finalisasi yang tersedia.'
+                                              : item.statusKey === 'cancelled'
+                                                ? 'Sidang ini sudah dibatalkan.'
+                                                : 'Lengkapi panel melalui Ubah Jadwal. Pertahankan dosen yang sudah dinilai agar nilainya tetap tersimpan.'}
+                                    </p>
+                                </AlertDescription>
+                            </Alert>
+                        )}
+
                         <div>
                             <p className="mb-2 text-xs font-medium text-muted-foreground">
                                 Keputusan Dosen
@@ -903,6 +1261,32 @@ function ExamDetailSheet({
                                 />
                             </div>
                         </div>
+                        {item.typeKey === 'sidang' && (
+                            <div className="flex flex-wrap items-center gap-2">
+                                <Button asChild variant="outline">
+                                    <Link href={showSidangPaper(item.id).url}>
+                                        <Printer
+                                            className="size-4"
+                                            aria-hidden
+                                        />{' '}
+                                        Kelola Berkas Sidang
+                                    </Link>
+                                </Button>
+                                {item.readyForReport && (
+                                    <Badge variant="secondary">
+                                        Siap Direkap
+                                    </Badge>
+                                )}
+                                {item.paperRecorded &&
+                                    !item.readyForReport &&
+                                    item.statusKey ===
+                                        'awaiting_finalization' && (
+                                        <Badge variant="outline">
+                                            Nilai Berkas Tersimpan
+                                        </Badge>
+                                    )}
+                            </div>
+                        )}
                         <DefenseRevisionLog log={item.revisionLog} />
                     </div>
                 </ScrollArea>
@@ -914,11 +1298,15 @@ function ExamDetailSheet({
 function ScheduleDialog({
     state,
     projects,
+    minimumPaperExaminers,
+    programWarning,
     open,
     onOpenChange,
 }: {
     state: ScheduleDialogState | null;
     projects: SchedulableProject[];
+    minimumPaperExaminers: number;
+    programWarning: string | null;
     open: boolean;
     onOpenChange: (open: boolean) => void;
 }) {
@@ -1004,10 +1392,32 @@ function ScheduleDialog({
         errors.scheduled_date_start ??
         errors.scheduled_date_end ??
         errors.scheduled_for;
+    const needsPaperPanel = activeState.type === 'sidang';
+    const supervisorIds =
+        currentProject?.supervisors.map((supervisor) =>
+            String(supervisor.id),
+        ) ?? [];
+    const examinerCount = new Set(
+        form.data.additional_examiner_user_ids.filter(
+            (id) => !supervisorIds.includes(id),
+        ),
+    ).size;
+    const missingPaperSupervisor =
+        needsPaperPanel && supervisorIds.length === 0;
+    const missingExaminers = minimumPaperExaminers - examinerCount;
+    const panelBlockReason =
+        needsPaperPanel && currentProject
+            ? missingPaperSupervisor
+                ? 'Tetapkan minimal satu pembimbing aktif.'
+                : missingExaminers > 0
+                  ? `Tambahkan ${missingExaminers} penguji (${examinerCount}/${minimumPaperExaminers}).`
+                  : null
+            : null;
     const submitDisabled =
         form.processing ||
         form.data.project_id === '' ||
-        Boolean(currentProjectScheduleBlockedReason);
+        Boolean(currentProjectScheduleBlockedReason) ||
+        Boolean(panelBlockReason);
 
     function submit() {
         const projectId = Number(form.data.project_id);
@@ -1031,6 +1441,9 @@ function ScheduleDialog({
                         Atur jadwal dan dosen terlibat untuk mahasiswa prodi.
                     </DialogDescription>
                 </DialogHeader>
+                {needsPaperPanel && (
+                    <ProgramWarningNotice message={programWarning} />
+                )}
 
                 <div className="grid gap-4">
                     <div className="grid min-w-0 gap-1.5">
@@ -1268,27 +1681,34 @@ function ScheduleDialog({
                             </div>
                         </div>
                     ) : (
-                        <LecturerMultiSearch
-                            label={`Penguji ${terms?.finalExam ?? neutralAcademicTerminology.finalExam} Tambahan`}
-                            values={form.data.additional_examiner_user_ids}
-                            onChange={(values) =>
-                                form.setData(
-                                    'additional_examiner_user_ids',
-                                    values,
-                                )
-                            }
-                            projectId={Number(form.data.project_id) || null}
-                            purpose="examiner"
-                            excludeIds={
-                                currentProject?.supervisors.map((supervisor) =>
-                                    String(supervisor.id),
-                                ) ?? []
-                            }
-                            error={
-                                (form.errors as Record<string, string>)
-                                    .additional_examiner_user_ids
-                            }
-                        />
+                        <div className="grid gap-2">
+                            <LecturerMultiSearch
+                                label={`Penguji ${terms?.finalExam ?? neutralAcademicTerminology.finalExam} Tambahan`}
+                                values={form.data.additional_examiner_user_ids}
+                                onChange={(values) =>
+                                    form.setData(
+                                        'additional_examiner_user_ids',
+                                        values,
+                                    )
+                                }
+                                projectId={Number(form.data.project_id) || null}
+                                purpose="examiner"
+                                excludeIds={supervisorIds}
+                                error={
+                                    (form.errors as Record<string, string>)
+                                        .additional_examiner_user_ids
+                                }
+                            />
+                            {needsPaperPanel && currentProject ? (
+                                <p
+                                    className="text-xs text-muted-foreground"
+                                    aria-live="polite"
+                                >
+                                    {examinerCount} dari minimal{' '}
+                                    {minimumPaperExaminers} penguji
+                                </p>
+                            ) : null}
+                        </div>
                     )}
 
                     {activeState.type === 'sidang' ? (
@@ -1312,6 +1732,15 @@ function ScheduleDialog({
                 </div>
 
                 <DialogFooter>
+                    {needsPaperPanel && (
+                        <p
+                            id={`${fieldId}-panel-status`}
+                            aria-live="polite"
+                            className="self-center text-sm text-warning-muted-foreground empty:hidden max-sm:order-last sm:me-auto"
+                        >
+                            {panelBlockReason}
+                        </p>
+                    )}
                     <Button
                         type="button"
                         variant="outline"
@@ -1322,6 +1751,11 @@ function ScheduleDialog({
                     <Button
                         type="button"
                         disabled={submitDisabled}
+                        aria-describedby={
+                            panelBlockReason
+                                ? `${fieldId}-panel-status`
+                                : undefined
+                        }
                         onClick={submit}
                     >
                         Simpan Jadwal

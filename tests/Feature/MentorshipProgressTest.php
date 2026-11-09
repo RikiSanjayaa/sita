@@ -207,12 +207,14 @@ it('records the unmet minimum in the audit and event payloads when kaprodi sched
     ['project' => $project, 'student' => $student, 'prodi' => $prodi, 'primary' => $primary, 'secondary' => $secondary] = mentorshipProject();
     $kaprodi = User::factory()->asKaprodi()->create();
     $examiner = User::factory()->asDosen()->create();
+    $secondExaminer = User::factory()->asDosen()->create();
     KaprodiAssignment::factory()->create([
         'program_studi_id' => $prodi->id,
         'user_id' => $kaprodi->id,
         'is_primary' => true,
     ]);
     DosenProfile::factory()->create(['user_id' => $examiner->id, 'program_studi_id' => $prodi->id, 'is_active' => true]);
+    DosenProfile::factory()->create(['user_id' => $secondExaminer->id, 'program_studi_id' => $prodi->id, 'is_active' => true]);
 
     mentorshipSessions($student, $primary, 6);
     mentorshipSessions($student, $secondary, 2);
@@ -224,7 +226,7 @@ it('records the unmet minimum in the audit and event payloads when kaprodi sched
             'scheduled_time' => '10:00',
             'location' => 'Ruang Sidang',
             'mode' => 'offline',
-            'additional_examiner_user_ids' => [$examiner->id],
+            'additional_examiner_user_ids' => [$examiner->id, $secondExaminer->id],
         ])
         ->assertRedirect()
         ->assertSessionHasNoErrors();
@@ -257,8 +259,10 @@ it('warns admin in the schedule sidang action yet still saves', function (): voi
     ['project' => $project, 'student' => $student, 'prodi' => $prodi, 'primary' => $primary, 'secondary' => $secondary] = mentorshipProject();
     $admin = User::factory()->asAdmin()->create();
     $examiner = User::factory()->asDosen()->create();
+    $secondExaminer = User::factory()->asDosen()->create();
     AdminProfile::query()->create(['user_id' => $admin->id, 'program_studi_id' => $prodi->id]);
     DosenProfile::factory()->create(['user_id' => $examiner->id, 'program_studi_id' => $prodi->id, 'is_active' => true]);
+    DosenProfile::factory()->create(['user_id' => $secondExaminer->id, 'program_studi_id' => $prodi->id, 'is_active' => true]);
 
     mentorshipSessions($student, $primary, 6);
     mentorshipSessions($student, $secondary, 1);
@@ -279,7 +283,7 @@ it('warns admin in the schedule sidang action yet still saves', function (): voi
             'scheduled_at_time' => '09:00',
             'location' => 'Ruang Sidang',
             'mode' => 'offline',
-            'additional_examiner_user_ids' => [$examiner->id],
+            'additional_examiner_user_ids' => [$examiner->id, $secondExaminer->id],
         ])
         ->callMountedAction()
         ->assertHasNoActionErrors();
