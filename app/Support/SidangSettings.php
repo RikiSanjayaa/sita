@@ -12,7 +12,12 @@ final class SidangSettings
 
     public static function minimumPaperExaminers(?ProgramStudi $program): int
     {
-        return (int) ($program?->sidang_settings['minimum_paper_examiners'] ?? 0);
+        return max(2, (int) ($program?->sidang_settings['minimum_paper_examiners'] ?? 2));
+    }
+
+    public static function programWarning(?ProgramStudi $program): ?string
+    {
+        return $program?->slug === 'ilkom' ? null : 'Berkas dan ketentuan penilaian prodi ini belum diverifikasi. Aplikasi sementara menggunakan acuan Ilmu Komputer: minimal dua penguji dan satu pembimbing penilai. Format dokumen dan bobot perlu dikonfirmasi sebelum digunakan sebagai dokumen resmi prodi.';
     }
 
     public const GRADES = ['A', 'B+', 'B', 'C+', 'C', 'D'];
@@ -20,7 +25,7 @@ final class SidangSettings
     public const GRADE_KEYS = ['a', 'b_plus', 'b', 'c_plus', 'c', 'd'];
 
     public const DEFAULTS = [
-        'minimum_paper_examiners' => 0,
+        'minimum_paper_examiners' => 2,
         'examiner_1' => 30, 'examiner_2' => 30, 'supervisor' => 40,
         'a' => 81, 'b_plus' => 71, 'b' => 66, 'c_plus' => 61, 'c' => 50, 'd' => 30,
         'city' => 'Mataram', 'heading' => 'Universitas Bumigora',
@@ -36,6 +41,7 @@ final class SidangSettings
     {
         $saved = $program?->sidang_settings ?? [];
         $settings = array_replace(self::DEFAULTS, array_filter($saved, fn ($value) => $value !== null));
+        $settings['minimum_paper_examiners'] = self::minimumPaperExaminers($program);
         foreach (['letterhead_address', 'letterhead_contact', 'letterhead_website'] as $field) {
             if (array_key_exists($field, $saved)) {
                 $settings[$field] = (string) $saved[$field];
@@ -50,7 +56,7 @@ final class SidangSettings
         $keys = [...self::GRADE_KEYS, 'examiner_1', 'examiner_2', 'supervisor'];
         Validator::make($settings, [
             ...array_fill_keys($keys, 'required|integer|min:1|max:100'),
-            'minimum_paper_examiners' => 'nullable|integer|min:0',
+            'minimum_paper_examiners' => 'nullable|integer|min:2',
         ])->validate();
         if (array_sum(array_intersect_key($settings, array_flip(['examiner_1', 'examiner_2', 'supervisor']))) !== 100) {
             throw ValidationException::withMessages(['supervisor' => 'Total bobot ketiga penilai harus 100%.']);

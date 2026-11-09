@@ -4,11 +4,13 @@ namespace App\Filament\Resources\ThesisProjects\Pages;
 
 use App\Filament\Resources\ThesisProjects\Actions\ManageSidangReportPeriod;
 use App\Filament\Resources\ThesisProjects\ThesisProjectResource;
+use App\Models\ProgramStudi;
 use App\Models\SidangReportPeriod;
 use App\Services\SidangReportPeriodService;
 use App\Services\ThesisProjectImportService;
 use App\Support\AcademicTerminology;
 use App\Support\Filament\SidangReportDatePicker;
+use App\Support\SidangSettings;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Forms\Components\Checkbox;
@@ -17,8 +19,10 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
+use Filament\Schemas\Components\Callout;
 use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Schema;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -36,6 +40,29 @@ class ListThesisProjects extends ListRecords
     public const SIDANG_PAPER_STATUSES = ['scheduled', 'awaiting_finalization', 'completed'];
 
     private const MAX_SHOWN_IMPORT_FAILURES = 25;
+
+    public function content(Schema $schema): Schema
+    {
+        $schema = parent::content($schema);
+
+        return $schema->components([
+            Callout::make('Acuan sidang sementara')
+                ->description(fn (): ?string => $this->sidangProgramWarning())
+                ->warning()
+                ->columnSpanFull()
+                ->visible(fn (): bool => $this->activeTab === self::SIDANG_PAPER_TAB && $this->sidangProgramWarning() !== null),
+            ...$schema->getComponents(withHidden: true),
+        ]);
+    }
+
+    private function sidangProgramWarning(): ?string
+    {
+        $programId = Auth::user()?->adminProgramStudiId() ?? data_get($this->tableFilters, 'program_studi_id.value');
+
+        return $programId === null
+            ? 'Peringatan ini berlaku untuk prodi selain Ilmu Komputer. '.SidangSettings::programWarning(null)
+            : SidangSettings::programWarning(ProgramStudi::find($programId));
+    }
 
     protected function getHeaderActions(): array
     {
@@ -63,6 +90,11 @@ class ListThesisProjects extends ListRecords
                     ->modalCancelActionLabel('Batal')
                     ->modalContentFooter(fn () => view('filament.thesis-projects.sidang-report-download'))
                     ->schema([
+                        Callout::make('Acuan sidang sementara')
+                            ->description(fn (): ?string => $this->sidangProgramWarning())
+                            ->warning()
+                            ->columnSpanFull()
+                            ->visible(fn (): bool => $this->sidangProgramWarning() !== null),
                         Select::make('period_id')->label('Periode rekap')->placeholder('Rentang tanggal manual')
                             ->options(fn (): array => $periodService->periods($programId)->mapWithKeys(fn (SidangReportPeriod $period): array => [
                                 $period->id => $period->label().' ('.$period->starts_on->format('d/m/Y').' - '.$period->ends_on->format('d/m/Y').')'

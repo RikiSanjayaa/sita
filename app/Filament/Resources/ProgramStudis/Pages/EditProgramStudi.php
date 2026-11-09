@@ -43,6 +43,8 @@ class EditProgramStudi extends EditRecord
                 ->fillForm(fn (): array => ['sidang_settings' => SidangSettings::forProgram($this->record)])
                 ->schema(fn (Schema $schema): Schema => $schema->columns(2)->components([
                     Text::make(fn (): string => SidangDocumentTemplate::description($this->record))->columnSpanFull(),
+                    Text::make(fn (): ?string => SidangSettings::programWarning($this->record))
+                        ->visible(fn (): bool => SidangSettings::programWarning($this->record) !== null)->columnSpanFull(),
                     TextInput::make('sidang_settings.heading')->label('Nama institusi pada kop')->required()->maxLength(100),
                     TextInput::make('sidang_settings.city')->label('Kota pengesahan')->required()->maxLength(80),
                     TextInput::make('sidang_settings.letterhead_address')->label('Alamat pada kop')->maxLength(200)->columnSpanFull(),
@@ -55,8 +57,8 @@ class EditProgramStudi extends EditRecord
                     TextInput::make('sidang_settings.staff_nik')->label('NIK staf prodi')->maxLength(30),
                     TextInput::make('sidang_settings.minimum_paper_examiners')
                         ->label('Minimal dosen penguji (selain pembimbing)')
-                        ->helperText('Kosong atau 0 memakai aturan panel lama. Angka positif juga mewajibkan satu pembimbing aktif. Rekap nilai dari berkas tetap membutuhkan dua penguji.')
-                        ->integer()->minValue(0)->columnSpanFull(),
+                        ->helperText('Semua prodi sementara memakai acuan Ilmu Komputer: minimal dua penguji selain pembimbing dan satu pembimbing aktif. Jumlah penguji dapat ditambah sesuai ketentuan prodi.')
+                        ->integer()->minValue(2)->columnSpanFull(),
                     TextInput::make('sidang_settings.examiner_1')->label('Bobot Penguji 1 (%)')->integer()->minValue(1)->maxValue(100)->required(),
                     TextInput::make('sidang_settings.examiner_2')->label('Bobot Penguji 2 (%)')->integer()->minValue(1)->maxValue(100)->required(),
                     TextInput::make('sidang_settings.supervisor')->label('Bobot Pembimbing Penilai (%)')->integer()->minValue(1)->maxValue(100)->required(),
@@ -78,7 +80,7 @@ class EditProgramStudi extends EditRecord
                         throw ValidationException::withMessages(collect($exception->errors())
                             ->mapWithKeys(fn (array $messages, string $field): array => [$prefix.$field => $messages])->all());
                     }
-                    $settings['minimum_paper_examiners'] = (int) ($settings['minimum_paper_examiners'] ?? 0);
+                    $settings['minimum_paper_examiners'] = (int) ($settings['minimum_paper_examiners'] ?? 2);
                     $this->record->update(['sidang_settings' => array_replace($this->record->sidang_settings ?? [], $settings)]);
                     Notification::make()->title('Pengaturan sidang disimpan')->success()->send();
                 }),

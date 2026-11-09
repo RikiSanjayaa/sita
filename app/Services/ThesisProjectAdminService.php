@@ -616,6 +616,7 @@ class ThesisProjectAdminService
             if (! in_array($defense->status, ['draft', 'scheduled'], true)) {
                 throw new RuntimeException($terminology['finalExamShort'].' tidak dapat dijadwalkan ulang.');
             }
+            $this->syncSidangExaminers($project->fresh(), $defense, $defense->examiners()->pluck('lecturer_user_id')->all(), $updatedBy);
             $updates = [
                 'scheduled_for' => $scheduledFor,
                 'scheduled_until' => $scheduledUntil,
@@ -1050,28 +1051,22 @@ class ThesisProjectAdminService
             ->values();
 
         $minimumExaminers = SidangSettings::minimumPaperExaminers($project->programStudi);
-        if ($minimumExaminers > 0) {
-            if ($supervisorIds->isEmpty()) {
-                throw new RuntimeException('Tetapkan minimal satu pembimbing aktif sesuai pengaturan prodi.');
-            }
-            if ($normalizedPanelIds->diff($supervisorIds)->count() < $minimumExaminers) {
-                throw new RuntimeException('Pilih minimal '.$minimumExaminers.' dosen penguji selain pembimbing.');
-            }
-        } elseif ($normalizedPanelIds->count() < 2) {
-            throw new RuntimeException('Panel '.$terminology['finalExamShort'].' harus berisi minimal dua dosen yang berbeda.');
+        if ($supervisorIds->isEmpty()) {
+            throw new RuntimeException('Tetapkan minimal satu pembimbing aktif sesuai pengaturan prodi.');
+        }
+        if ($normalizedPanelIds->diff($supervisorIds)->count() < $minimumExaminers) {
+            throw new RuntimeException('Pilih minimal '.$minimumExaminers.' dosen penguji selain pembimbing.');
         }
 
-        // If supervisors exist, ensure they are included in the panel
+        // Include every active supervisor in the panel.
         foreach ($supervisorIds as $index => $supervisorId) {
             if (! $normalizedPanelIds->contains($supervisorId)) {
                 throw new RuntimeException(sprintf('Panel '.$terminology['finalExamShort'].' harus menyertakan Pembimbing %d.', $index + 1));
             }
         }
 
-        // Order: supervisors first (if any), then additional examiners
-        $orderedPanelIds = $supervisorIds->isNotEmpty()
-            ? $supervisorIds->concat($normalizedPanelIds->reject(fn(int $id): bool => $supervisorIds->contains($id)))->values()
-            : $normalizedPanelIds;
+        // Order supervisors before additional examiners.
+        $orderedPanelIds = $supervisorIds->concat($normalizedPanelIds->reject(fn(int $id): bool => $supervisorIds->contains($id)))->values();
 
         foreach ($orderedPanelIds as $index => $lecturerUserId) {
             $this->assertDefenseExaminerEligible($project, $lecturerUserId, sprintf('Panel '.$terminology['finalExamShort'].' #%d', $index + 1));
@@ -1083,22 +1078,18 @@ class ThesisProjectAdminService
             ]);
 
         $retained = collect();
-        if ($minimumExaminers > 0) {
-            foreach ($defense->examiners()->lockForUpdate()->get() as $member) {
-                $lecturerId = (int) $member->lecturer_user_id;
-                if ($orderedPanelIds->contains($lecturerId) && $member->role === $roleByLecturerId->get($lecturerId, 'examiner')) {
-                    $retained->put($lecturerId, $member);
+        foreach ($defense->examiners()->lockForUpdate()->get() as $member) {
+            $lecturerId = (int) $member->lecturer_user_id;
+            if ($orderedPanelIds->contains($lecturerId) && $member->role === $roleByLecturerId->get($lecturerId, 'examiner')) {
+                $retained->put($lecturerId, $member);
 
-                    continue;
-                }
-                if ($member->decision !== 'pending' || $member->score !== null || $member->decided_at !== null
-                    || filled($member->revision_notes) || filled($member->revision_items)) {
-                    throw new RuntimeException('Pertahankan dosen yang penilaiannya sudah tercatat saat melengkapi panel.');
-                }
-                $member->delete();
+                continue;
             }
-        } else {
-            $defense->examiners()->delete();
+            if ($member->decision !== 'pending' || $member->score !== null || $member->decided_at !== null
+                || filled($member->revision_notes) || filled($member->revision_items)) {
+                throw new RuntimeException('Pertahankan dosen yang penilaiannya sudah tercatat saat melengkapi panel.');
+            }
+            $member->delete();
         }
 
         // Free any occupied positions before reordering retained members.

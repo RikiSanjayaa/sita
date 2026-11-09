@@ -53,6 +53,8 @@ Rencana ini mengikuti keputusan review terbaru pada commit `0b7358a`. Status saa
 - Jalankan Pest terarah, Playwright untuk alur yang berubah, pemeriksaan format/tipe/lint, detektor desain dan golden path sebelum demo. Sertakan tangkapan layar data demo pada 1280 dan 390 px, terang dan gelap, termasuk dialog dan riwayat koreksi. Setelah CI pada commit terbaru lulus, uji di server testing dengan data yang sudah ada.
 - Kelima catatan tetap terbuka sampai reviewer memeriksa bukti masing-masing. PR #192 dan issue #17/#23 punya cakupan berbeda. Sempro/Sinopsis di #17 dan laporan progres atau belum selesai di #23 tetap ditangani sebagai cakupan tersendiri.
 
-## Informasi yang ditunggu dari kampus
+## Keputusan panel 9 November 2026
 
-Susunan **1 penguji + 2 pembimbing** berasal dari skenario pengujian. Saat ada jawaban kampus, catat prodi yang memakai susunan tersebut, peran yang nilainya dihitung, bobot masing-masing, aturan huruf dan pembulatan, serta format rekap yang berlaku. Profil nilai, aturan minimum panel, dan pilihan template dokumen tetap terpisah. Sampai aturan resmi tersedia, jalur penjadwalan dan keputusan yang sudah berjalan tetap dapat digunakan, dan ekspor menjelaskan sidang yang terhalang. [Klarifikasi panel](https://github.com/RikiSanjayaa/sita/pull/192#discussion_r4505682531)
+Pemilik produk mengganti rencana dukungan satu penguji dengan acuan Ilmu Komputer untuk seluruh prodi. Minimal dua penguji berbeda dan satu pembimbing aktif diwajibkan. Nilai konfigurasi lama 0/1 dibaca sebagai 2, sementara minimum lebih tinggi tetap berlaku. Admin dan Kaprodi memperingatkan bahwa berkas dan ketentuan non-Ilkom belum diverifikasi.
+
+Panel belum final dapat dilengkapi selama jadwal masih dapat diubah, tanpa mengeluarkan dosen yang sudah menilai. Jadwal Menunggu Finalisasi dan hasil final tidak dibuka ulang. Tidak ada bobot alternatif atau pemetaan pembimbing menjadi penguji. Ekspor panel yang belum memenuhi syarat tetap ditolak dengan identitas mahasiswa. Profil resmi non-Ilkom dapat dibahas setelah berkas kampus tersedia dan tidak lagi menjadi syarat merge PR #192.

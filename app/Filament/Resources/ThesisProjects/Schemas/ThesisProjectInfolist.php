@@ -18,11 +18,13 @@ use App\Services\MentorshipSessionNoteService;
 use App\Support\AcademicTerminology;
 use App\Support\DefenseRevisionLog;
 use App\Support\Filament\BadgeStyles;
+use App\Support\SidangSettings;
 use App\Support\WitaDateTime;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\RepeatableEntry\TableColumn;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Infolists\Components\ViewEntry;
+use Filament\Schemas\Components\Callout;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
@@ -34,6 +36,11 @@ class ThesisProjectInfolist
     {
         return $schema
             ->components([
+                Callout::make('Acuan sidang sementara')
+                    ->description(fn (ThesisProject $record): ?string => SidangSettings::programWarning($record->programStudi))
+                    ->warning()
+                    ->columnSpanFull()
+                    ->visible(fn (ThesisProject $record): bool => SidangSettings::programWarning($record->programStudi) !== null),
                 Section::make(fn(ThesisProject $record): string => 'Ringkasan '.AcademicTerminology::forProject($record)['finalWork'])
                     ->columns(2)
                     ->schema([

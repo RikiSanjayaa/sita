@@ -78,6 +78,9 @@ it('blocks a mixed report with an identified legacy panel instead of silently dr
     app(SidangPaperService::class)->record($supported, $superAdmin, ['scores' => $scores]);
     app(ThesisProjectAdminService::class)->completeSidang($supported->project, $superAdmin->id, 'pass', 'Final.');
 
+    $legacyFinal = $legacy->fresh()->getAttributes();
+    $legacyPanel = $legacy->examiners()->orderBy('id')->get()->toArray();
+    $legacyProject = $legacy->project->fresh()->getAttributes();
     $tempFiles = glob(sys_get_temp_dir().'/sita-office-*');
     $response = $this->actingAs($actor)->postJson(route('sidang.report'))->assertUnprocessable();
     expect($response->json('message'))->toContain('1 sidang', 'Mahasiswa Panel Lama', $student->mahasiswaProfile->nim, 'profil perhitungan', 'bobot perlu dikonfirmasi')
@@ -87,6 +90,10 @@ it('blocks a mixed report with an identified legacy panel instead of silently dr
     // An explicit selection may still download the supported row, preserving its final score.
     $excel = sidangExcelContent($this->post(route('sidang.report'), ['ids' => (string) $supported->id])->assertOk());
     expect(sidangReportSheet($excel))->toContain($supported->project->student->name)->not->toContain('Mahasiswa Panel Lama');
+    expect($legacy->fresh()->getAttributes())->toBe($legacyFinal)
+        ->and($legacy->examiners()->orderBy('id')->get()->toArray())->toBe($legacyPanel)
+        ->and($legacy->project->fresh()->getAttributes())->toBe($legacyProject)
+        ->and($legacy->project->sidangDefenses()->count())->toBe(1);
 })->with(['admin', 'kaprodi']);
 
 it('prints the faculty packet and every selected sheet with shared identity and escaped text', function (): void {
@@ -159,6 +166,18 @@ it('uses final score snapshots for print and Word and leaves scheduled results u
     $program->update(['sidang_settings' => ['examiner_1' => 20, 'examiner_2' => 20, 'supervisor' => 60]]);
     expect($presenter->fields($defense->fresh()))->toMatchArray(['total' => '80', 'examiner1Weight' => '30 %']);
     $this->get(route('sidang.paper.preview', [$defense, 'lembar' => 'rekap-nilai']))->assertOk()->assertSee('<td>80</td>', false);
+    $final = $defense->fresh()->getAttributes();
+    $panel = $defense->examiners()->orderBy('id')->get()->toArray();
+    $project = $defense->project->fresh()->getAttributes();
+    expect(fn () => app(SidangPaperService::class)->record($defense, $actor, ['scores' => $scores]))
+        ->toThrow(ValidationException::class, 'Sidang ini sudah difinalisasi');
+    expect(fn () => app(ThesisProjectAdminService::class)->rescheduleSidang(
+        $defense->project, $actor->id, '2026-12-02 10:00:00', null, 'Ruang Baru', 'offline', null,
+    ))->toThrow(RuntimeException::class, 'Tidak ada');
+    expect($defense->fresh()->getAttributes())->toBe($final)
+        ->and($defense->examiners()->orderBy('id')->get()->toArray())->toBe($panel)
+        ->and($defense->project->fresh()->getAttributes())->toBe($project)
+        ->and($defense->project->sidangDefenses()->count())->toBe(1);
     $defense->update(['result' => 'fail']);
     expect($presenter->fields($defense->fresh()))->toMatchArray(['pass' => '', 'fail' => 'TIDAK LULUS']);
 });
@@ -323,6 +342,33 @@ it('opens and saves the sidang document and grade settings for a program', funct
         ->toMatchArray(['city' => 'Kota Uji', 'minimum_paper_examiners' => 2]);
 });
 
+it('cannot save a legacy examiner minimum through program settings', function (int $minimum): void {
+    $program = ProgramStudi::factory()->create(['sidang_settings' => ['minimum_paper_examiners' => 0]]);
+    $this->actingAs(User::factory()->asSuperAdmin()->create());
+
+    Livewire::test(EditProgramStudi::class, ['record' => $program->getRouteKey()])
+        ->mountAction('sidangSettings')
+        ->assertActionDataSet(['sidang_settings.minimum_paper_examiners' => 2])
+        ->setActionData(['sidang_settings' => [...SidangSettings::forProgram($program), 'minimum_paper_examiners' => $minimum]])
+        ->callMountedAction()
+        ->assertHasActionErrors(['sidang_settings.minimum_paper_examiners' => 'min'])
+        ->assertActionMounted('sidangSettings');
+    expect($program->fresh()->sidang_settings)->toBe(['minimum_paper_examiners' => 0])
+        ->and(SidangSettings::minimumPaperExaminers($program->fresh()))->toBe(2);
+})->with([0, 1]);
+
+it('saves the baseline when the optional examiner minimum is cleared', function (): void {
+    $program = ProgramStudi::factory()->create();
+    $this->actingAs(User::factory()->asSuperAdmin()->create());
+
+    Livewire::test(EditProgramStudi::class, ['record' => $program->getRouteKey()])
+        ->mountAction('sidangSettings')
+        ->setActionData(['sidang_settings' => [...SidangSettings::forProgram($program), 'minimum_paper_examiners' => null]])
+        ->callMountedAction()
+        ->assertHasNoActionErrors();
+    expect($program->fresh()->sidang_settings['minimum_paper_examiners'])->toBe(2);
+});
+
 it('initializes existing Ilkom settings without overwriting other settings or a saved minimum', function (): void {
     $ilkom = ProgramStudi::factory()->create(['slug' => 'ilkom', 'sidang_settings' => ['city' => 'Kota Uji']]);
     $other = ProgramStudi::factory()->create(['sidang_settings' => ['city' => 'Kota Lain']]);
@@ -334,7 +380,9 @@ it('initializes existing Ilkom settings without overwriting other settings or a 
 
     $ilkom->update(['sidang_settings' => ['city' => 'Kota Uji', 'minimum_paper_examiners' => 0]]);
     $migration->up();
-    expect(SidangSettings::minimumPaperExaminers($ilkom->fresh()))->toBe(0);
+    expect($ilkom->fresh()->sidang_settings)->toBe(['city' => 'Kota Uji', 'minimum_paper_examiners' => 0])
+        ->and(SidangSettings::minimumPaperExaminers($ilkom->fresh()))->toBe(2)
+        ->and(SidangSettings::minimumPaperExaminers($other->fresh()))->toBe(2);
 });
 
 it('seeds the initial Ilkom requirement and preserves a later admin choice', function (): void {
@@ -344,7 +392,8 @@ it('seeds the initial Ilkom requirement and preserves a later admin choice', fun
     $program->update(['sidang_settings' => ['minimum_paper_examiners' => 0]]);
 
     $this->seed(AcademicStructureSeeder::class);
-    expect(SidangSettings::minimumPaperExaminers($program->fresh()))->toBe(0);
+    expect($program->fresh()->sidang_settings)->toBe(['minimum_paper_examiners' => 0])
+        ->and(SidangSettings::minimumPaperExaminers($program->fresh()))->toBe(2);
 });
 
 it('shows the setting error on the matching field and keeps the modal open', function (array $changes, string $field, string $message): void {
@@ -385,8 +434,8 @@ it('fills the Word letterhead from the issuing program and faculty', function ()
     }
 });
 
-it('requires the configured paper panel and completes old schedules without losing scores', function (): void {
-    [$defense] = sidangPaperFixture(ProgramStudi::factory()->create(['sidang_settings' => ['minimum_paper_examiners' => 2]]));
+it('completes unfinished legacy panels without losing scores or removing assessed staff', function (int $savedMinimum): void {
+    [$defense] = sidangPaperFixture(ProgramStudi::factory()->create(['slug' => 'manajemen', 'sidang_settings' => ['minimum_paper_examiners' => $savedMinimum]]));
     $admin = User::factory()->asSuperAdmin()->create();
     $project = $defense->project;
     $panel = $defense->examiners()->orderBy('order_no')->get();
@@ -422,44 +471,111 @@ it('requires the configured paper panel and completes old schedules without losi
         ->toThrow(RuntimeException::class, 'Pilih minimal 2 dosen penguji selain pembimbing');
     expect($defense->fresh()->scheduled_for->toDateTimeString())->toBe('2026-11-04 23:30:00')
         ->and($defense->examiners()->count())->toBe(2);
+    $replacement = User::factory()->asDosen()->create();
+    DosenProfile::factory()->create(['user_id' => $replacement->id, 'program_studi_id' => $project->program_studi_id, 'is_active' => true]);
+    expect(fn () => $schedule([$supervisor->lecturer_user_id, $second->lecturer_user_id, $replacement->id]))
+        ->toThrow(RuntimeException::class, 'Pertahankan dosen yang penilaiannya sudah tercatat');
+    expect($first->fresh()->score)->toEqual(90)
+        ->and($defense->fresh()->scheduled_for->toDateTimeString())->toBe('2026-11-04 23:30:00');
 
     $updated = $schedule([$supervisor->lecturer_user_id, $first->lecturer_user_id, $second->lecturer_user_id]);
     expect($updated->id)->toBe($defense->id)
         ->and($updated->examiners()->orderBy('order_no')->pluck('role')->all())->toBe(['primary_supervisor', 'examiner', 'examiner'])
         ->and($first->fresh()->score)->toEqual(90);
+})->with([0, 1, 2]);
+
+it('rejects time-only edits of an unfinished legacy panel until it is completed', function (): void {
+    [$defense] = sidangPaperFixture(ProgramStudi::factory()->create(['slug' => 'manajemen', 'sidang_settings' => ['minimum_paper_examiners' => 0]]));
+    $admin = User::factory()->asSuperAdmin()->create();
+    $supervisor = $defense->examiners()->where('role', 'primary_supervisor')->firstOrFail();
+    $defense->project->supervisorAssignments()->create([
+        'lecturer_user_id' => $supervisor->lecturer_user_id,
+        'role' => 'primary', 'status' => 'active', 'assigned_by' => $admin->id, 'started_at' => now(),
+    ]);
+    $defense->examiners()->where('role', 'examiner')->orderByDesc('order_no')->firstOrFail()->delete();
+    $defense->examiners()->where('role', 'examiner')->update(['score' => 90]);
+    $before = $defense->fresh()->getAttributes();
+    $panel = $defense->examiners()->orderBy('id')->get()->toArray();
+
+    expect(fn () => app(ThesisProjectAdminService::class)->rescheduleSidang(
+        $defense->project, $admin->id, '2026-11-06 10:00:00', null, 'Ruang Baru', 'offline', null,
+    ))->toThrow(RuntimeException::class, 'Pilih minimal 2 dosen penguji selain pembimbing');
+    expect($defense->fresh()->getAttributes())->toBe($before)
+        ->and($defense->examiners()->orderBy('id')->get()->toArray())->toBe($panel);
 });
 
-it('uses the saved minimum at both scheduling entry points and accepts the old panel after it is disabled', function (): void {
-    [$defense, , $program] = sidangPaperFixture();
+it('retains a stricter program examiner minimum', function (): void {
+    [$defense] = sidangPaperFixture(ProgramStudi::factory()->create(['slug' => 'manajemen', 'sidang_settings' => ['minimum_paper_examiners' => 3]]));
+    $admin = User::factory()->asSuperAdmin()->create();
+    $supervisor = $defense->examiners()->where('role', 'primary_supervisor')->firstOrFail();
+    $defense->project->supervisorAssignments()->create([
+        'lecturer_user_id' => $supervisor->lecturer_user_id,
+        'role' => 'primary', 'status' => 'active', 'assigned_by' => $admin->id, 'started_at' => now(),
+    ]);
+    $ids = $defense->examiners()->pluck('lecturer_user_id')->all();
+    $schedule = fn (array $panelIds) => app(ThesisProjectAdminService::class)->scheduleSidang(
+        $defense->project, $admin->id, '2026-11-06 10:00:00', 'Ruang Sidang', 'offline', $panelIds,
+    );
+    expect(fn () => $schedule($ids))->toThrow(RuntimeException::class, 'Pilih minimal 3 dosen penguji selain pembimbing');
+    $third = User::factory()->asDosen()->create();
+    DosenProfile::factory()->create(['user_id' => $third->id, 'program_studi_id' => $defense->project->program_studi_id, 'is_active' => true]);
+    expect($schedule([...$ids, $third->id])->examiners()->where('role', 'examiner')->count())->toBe(3);
+});
+
+it('enforces the non Ilkom baseline at Kaprodi and Filament scheduling entry points', function (array $settings, bool $alreadyScheduled): void {
+    [$defense, , $program] = sidangPaperFixture(ProgramStudi::factory()->create(['slug' => 'manajemen', 'sidang_settings' => $settings]));
     $project = $defense->project;
     $admin = User::factory()->asSuperAdmin()->create();
     $head = User::factory()->asKaprodi()->create();
     KaprodiAssignment::factory()->create(['user_id' => $head->id, 'program_studi_id' => $program->id]);
-    $examiner = $defense->examiners()->where('role', 'examiner')->firstOrFail();
+    $examiners = $defense->examiners()->where('role', 'examiner')->orderBy('order_no')->get();
     $supervisor = $defense->examiners()->where('role', 'primary_supervisor')->firstOrFail();
     $project->supervisorAssignments()->create([
         'lecturer_user_id' => $supervisor->lecturer_user_id,
         'role' => 'primary', 'status' => 'active', 'assigned_by' => $admin->id, 'started_at' => now(),
     ]);
+    if (! $alreadyScheduled) {
+        $defense->delete();
+    }
+    $before = $project->sidangDefenses()->with('examiners')->get()->toArray();
     $data = [
         'scheduled_for' => '2026-11-06 10:00:00', 'location' => 'Ruang Sidang Uji', 'mode' => 'offline',
-        'additional_examiner_user_ids' => [$examiner->lecturer_user_id],
+        'additional_examiner_user_ids' => [$examiners->first()->lecturer_user_id],
+    ];
+    $actionData = [
+        'scheduled_starts_on' => '2026-11-06', 'scheduled_at_time' => '10:00',
+        'location' => $data['location'], 'mode' => $data['mode'],
+        'additional_examiner_user_ids' => $data['additional_examiner_user_ids'],
     ];
 
-    $program->update(['sidang_settings' => ['minimum_paper_examiners' => 2]]);
     $this->actingAs($head)->post(route('kaprodi.projects.sidang', $project), $data)
         ->assertSessionHasErrors(['additional_examiner_user_ids' => 'Pilih minimal 2 dosen penguji selain pembimbing.']);
-
-    $program->update(['sidang_settings' => ['minimum_paper_examiners' => 0]]);
-    $this->post(route('kaprodi.projects.sidang', $project), $data)->assertSessionHasNoErrors();
     $this->actingAs($admin);
     Livewire::test(ViewThesisProject::class, ['record' => $project->getRouteKey()])
         ->mountAction('schedule_sidang')
-        ->setActionData(['additional_examiner_user_ids' => [$examiner->lecturer_user_id]])
+        ->setActionData($actionData)
+        ->callMountedAction()
+        ->assertHasActionErrors(['additional_examiner_user_ids' => 'min']);
+    expect($project->sidangDefenses()->with('examiners')->get()->toArray())->toBe($before);
+
+    $data['additional_examiner_user_ids'] = $examiners->pluck('lecturer_user_id')->all();
+    $this->actingAs($head)->post(route('kaprodi.projects.sidang', $project), $data)->assertSessionHasNoErrors();
+    $actionData['additional_examiner_user_ids'] = $data['additional_examiner_user_ids'];
+    $this->actingAs($admin);
+    Livewire::test(ViewThesisProject::class, ['record' => $project->getRouteKey()])
+        ->mountAction('schedule_sidang')
+        ->setActionData($actionData)
         ->callMountedAction()
         ->assertHasNoActionErrors();
-    expect($defense->fresh()->examiners()->where('role', 'examiner')->count())->toBe(1);
-});
+    $updated = $project->sidangDefenses()->firstOrFail();
+    expect($updated->examiners()->where('role', 'examiner')->count())->toBe(2)
+        ->and($updated->scheduled_for->toDateTimeString())->toBe('2026-11-06 10:00:00')
+        ->and($project->sidangDefenses()->count())->toBe(1);
+})->with([
+    'default' => [[]],
+    'saved zero' => [['minimum_paper_examiners' => 0]],
+    'saved one' => [['minimum_paper_examiners' => 1]],
+])->with(['new schedule' => false, 'edited schedule' => true]);
 
 it('lists only accessible latest sidang records and shows the shortcut for each stage', function (): void {
     [$scheduled, , $program] = sidangPaperFixture();
@@ -511,14 +627,10 @@ it('offers print and digital finalization without a paper score shortcut for a l
         ->assertTableActionHasLabel('tindakan_berkas_sidang', 'Lihat Berkas', $defense->project)
         ->assertTableActionHasUrl('tindakan_berkas_sidang', $url, $defense->project)
         ->assertTableActionHasUrl('unduh_berkas_sidang', route('sidang.paper.download', $defense), $defense->project);
-    $this->get($url)->assertOk()->assertSee(SidangScoreService::PAPER_PANEL_HINT)->assertDontSee('Nilai penguji 2');
+    $this->get($url)->assertOk()->assertDontSee('Nilai penguji 2');
 
     $defense->update(['status' => 'awaiting_finalization']);
     $this->get($url)->assertOk()->assertSee('Finalisasi Sidang')->assertDontSee('Nilai penguji 2');
-    $head = User::factory()->asKaprodi()->create();
-    KaprodiAssignment::factory()->create(['program_studi_id' => $program->id, 'user_id' => $head->id]);
-    $this->actingAs($head)->get(route('sidang.paper.show', $defense))
-        ->assertInertia(fn (Assert $page) => $page->where('defense.paperPanelHint', SidangScoreService::PAPER_PANEL_HINT));
 });
 
 it('refreshes period suggestions until staff override each field', function (): void {

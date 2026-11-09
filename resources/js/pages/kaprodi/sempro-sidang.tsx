@@ -45,6 +45,7 @@ import { PageHeader } from '@/components/patterns/page-header';
 import { StatusBadge } from '@/components/patterns/status-badge';
 import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
 import { ScheduleDetailDrawer } from '@/components/schedule-detail-drawer';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -121,6 +122,7 @@ type ExamRow = {
     scoreRequired: boolean;
     grade: string | null;
     paperRecorded: boolean;
+    paperPanelHint: string | null;
     readyForReport: boolean;
     student: string;
     terminology: AcademicTerminology;
@@ -184,6 +186,7 @@ type SemproSidangProps = {
     exams: ExamRow[];
     schedulableProjects: SchedulableProject[];
     minimumPaperExaminers: number;
+    programWarning: string | null;
     calendarEvents: BimbinganEvent[];
     reportPeriods: { id: number; label: string; range: string }[];
     activeReportPeriodId: number | null;
@@ -200,6 +203,18 @@ type ScheduleDialogState = {
     project?: SchedulableProject;
     exam?: ExamRow;
 };
+
+function ProgramWarningNotice({ message }: { message: string | null }) {
+    if (!message) return null;
+
+    return (
+        <Alert variant="warning">
+            <FileWarning aria-hidden />
+            <AlertTitle>Acuan sidang prodi belum diverifikasi</AlertTitle>
+            <AlertDescription>{message}</AlertDescription>
+        </Alert>
+    );
+}
 
 function requestedScheduleType(): 'sempro' | 'sidang' | null {
     if (typeof window === 'undefined') {
@@ -314,6 +329,7 @@ export default function KaprodiSemproSidangPage() {
         exams,
         schedulableProjects,
         minimumPaperExaminers,
+        programWarning,
         calendarEvents,
         reportPeriods,
         activeReportPeriodId,
@@ -595,6 +611,10 @@ export default function KaprodiSemproSidangPage() {
                         </div>
                     </StickyFilterBar>
 
+                    {typeFilter !== 'sempro' && (
+                        <ProgramWarningNotice message={programWarning} />
+                    )}
+
                     {filtered.length === 0 ? (
                         <DataTableEmptyState
                             icon={Inbox}
@@ -736,6 +756,20 @@ export default function KaprodiSemproSidangPage() {
                                                         ),
                                                     )}
                                                 </ul>
+                                                {item.paperPanelHint && (
+                                                    <p className="mt-2 text-xs text-warning-muted-foreground">
+                                                        {item.statusKey ===
+                                                        'completed'
+                                                            ? 'Panel tidak memenuhi kebutuhan rekap nilai. Hasil final tidak dapat diubah atau dibuka kembali.'
+                                                            : item.statusKey ===
+                                                                'awaiting_finalization'
+                                                              ? 'Panel tidak memenuhi kebutuhan rekap nilai. Jadwal dan panel tidak dapat diubah selama finalisasi. Lanjutkan melalui alur keputusan dan finalisasi yang tersedia.'
+                                                              : item.statusKey ===
+                                                                  'cancelled'
+                                                                ? 'Panel sidang belum lengkap. Sidang ini sudah dibatalkan.'
+                                                                : 'Panel sidang belum lengkap. Lengkapi melalui Ubah Jadwal dengan mempertahankan dosen yang sudah dinilai.'}
+                                                    </p>
+                                                )}
                                             </td>
                                             <td
                                                 data-label="Nilai"
@@ -905,6 +939,26 @@ export default function KaprodiSemproSidangPage() {
                             Periode dihitung dari tanggal sidang dalam WITA.
                         </DialogDescription>
                     </DialogHeader>
+                    <ProgramWarningNotice message={programWarning} />
+                    {filtered.some(
+                        (exam) =>
+                            exam.typeKey === 'sidang' &&
+                            exam.statusKey === 'completed' &&
+                            exam.paperPanelHint,
+                    ) && (
+                        <Alert variant="warning">
+                            <FileWarning aria-hidden />
+                            <AlertTitle>
+                                Panel sidang final belum lengkap
+                            </AlertTitle>
+                            <AlertDescription>
+                                Daftar ini memuat sidang final yang tidak
+                                memiliki panel penilai yang diperlukan untuk
+                                rekap nilai. Hasil final tidak dapat diubah atau
+                                dibuka kembali.
+                            </AlertDescription>
+                        </Alert>
+                    )}
                     <form
                         method="post"
                         action={report.url()}
@@ -1056,6 +1110,7 @@ export default function KaprodiSemproSidangPage() {
                 state={scheduleDialog}
                 projects={schedulableProjects}
                 minimumPaperExaminers={minimumPaperExaminers}
+                programWarning={programWarning}
                 open={scheduleDialog !== null}
                 onOpenChange={(open) => {
                     if (!open) setScheduleDialog(null);
@@ -1123,6 +1178,28 @@ function ExamDetailSheet({
                                 <span>{item.location ?? '-'}</span>
                             </div>
                         </div>
+
+                        {item.paperPanelHint && (
+                            <Alert variant="warning">
+                                <FileWarning aria-hidden />
+                                <AlertTitle>
+                                    Panel sidang belum lengkap
+                                </AlertTitle>
+                                <AlertDescription>
+                                    <p>{item.paperPanelHint}</p>
+                                    <p>
+                                        {item.statusKey === 'completed'
+                                            ? 'Panel ini tidak memenuhi kebutuhan rekap nilai. Hasil final tidak dapat diubah atau dibuka kembali.'
+                                            : item.statusKey ===
+                                                'awaiting_finalization'
+                                              ? 'Panel ini tidak memenuhi kebutuhan rekap nilai. Jadwal dan panel tidak dapat diubah selama finalisasi. Lanjutkan melalui alur keputusan dan finalisasi yang tersedia.'
+                                              : item.statusKey === 'cancelled'
+                                                ? 'Sidang ini sudah dibatalkan.'
+                                                : 'Lengkapi panel melalui Ubah Jadwal. Pertahankan dosen yang sudah dinilai agar nilainya tetap tersimpan.'}
+                                    </p>
+                                </AlertDescription>
+                            </Alert>
+                        )}
 
                         <div>
                             <p className="mb-2 text-xs font-medium text-muted-foreground">
@@ -1222,12 +1299,14 @@ function ScheduleDialog({
     state,
     projects,
     minimumPaperExaminers,
+    programWarning,
     open,
     onOpenChange,
 }: {
     state: ScheduleDialogState | null;
     projects: SchedulableProject[];
     minimumPaperExaminers: number;
+    programWarning: string | null;
     open: boolean;
     onOpenChange: (open: boolean) => void;
 }) {
@@ -1313,8 +1392,7 @@ function ScheduleDialog({
         errors.scheduled_date_start ??
         errors.scheduled_date_end ??
         errors.scheduled_for;
-    const needsPaperPanel =
-        activeState.type === 'sidang' && minimumPaperExaminers > 0;
+    const needsPaperPanel = activeState.type === 'sidang';
     const supervisorIds =
         currentProject?.supervisors.map((supervisor) =>
             String(supervisor.id),
@@ -1363,6 +1441,9 @@ function ScheduleDialog({
                         Atur jadwal dan dosen terlibat untuk mahasiswa prodi.
                     </DialogDescription>
                 </DialogHeader>
+                {needsPaperPanel && (
+                    <ProgramWarningNotice message={programWarning} />
+                )}
 
                 <div className="grid gap-4">
                     <div className="grid min-w-0 gap-1.5">

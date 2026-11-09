@@ -23,6 +23,7 @@ use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Concerns\InteractsWithRecord;
 use Filament\Resources\Pages\Page;
+use Filament\Schemas\Components\Callout;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
@@ -120,6 +121,21 @@ class ManageSidangPaper extends Page
     public function details(Schema $schema): Schema
     {
         return $schema->components([
+            Callout::make('Acuan sidang sementara')
+                ->description(fn (): ?string => SidangSettings::programWarning($this->getRecord()->programStudi))
+                ->warning()
+                ->columnSpanFull()
+                ->visible(fn (): bool => SidangSettings::programWarning($this->getRecord()->programStudi) !== null),
+            Callout::make('Panel belum memenuhi syarat rekap')
+                ->description(fn (): string => match ($this->defense->status) {
+                    'completed' => 'Susunan panel sidang final ini belum memenuhi syarat perhitungan dan rekap saat ini. Hasil final tetap dipertahankan. Panel dan nilai tidak boleh diubah hanya untuk memasukkannya ke rekap.',
+                    'awaiting_finalization' => 'Panel sidang ini belum memenuhi syarat perhitungan dan rekap saat ini. Jadwal dan panel terkunci selama menunggu finalisasi. Lanjutkan melalui alur keputusan dan finalisasi yang sudah tersedia.',
+                    'cancelled' => 'Sidang ini dibatalkan. Panel dan nilai tidak dapat diubah.',
+                    default => 'Dibutuhkan minimal dua penguji berbeda dan satu pembimbing aktif. Lengkapi panel melalui pengaturan jadwal. Nilai dosen yang tetap berada di panel dipertahankan.',
+                })
+                ->warning()
+                ->columnSpanFull()
+                ->visible(fn (): bool => ! $this->canEnterScores()),
             Section::make('Detail sidang')->columns(2)->schema([
                 TextEntry::make('title')->label('Judul')->state($this->defense->titleVersion?->title_id ?? '-')->columnSpanFull(),
                 TextEntry::make('schedule')->label('Jadwal')->state(WitaDateTime::format($this->defense->scheduled_for)),
@@ -223,7 +239,7 @@ class ManageSidangPaper extends Page
             Section::make('Nilai dari berkas')
                 ->description($this->canEnterScores()
                     ? 'Masukkan nilai total pada lembar masing-masing dosen. Nilai yang sudah tercatat ditampilkan otomatis.'
-                    : SidangScoreService::PAPER_PANEL_HINT)
+                    : 'Nilai dari berkas tidak tersedia untuk susunan panel ini. Lihat penjelasan kelengkapan panel di atas.')
                 ->schema($this->canEnterScores() ? $fields : [])->footerActions([
                     $this->saveScoresAction(),
                     Action::make('finalize')->label('Finalisasi Sidang')->color('gray')

@@ -13,7 +13,7 @@ use Illuminate\Validation\ValidationException;
 
 final class SidangScoreService
 {
-    public const PAPER_PANEL_HINT = 'Input nilai dari berkas membutuhkan dua penguji dan minimal satu pembimbing pada panel. Panel lain tetap mengikuti alur penilaian Dosen.';
+    public const PAPER_PANEL_HINT = 'Input nilai dari berkas membutuhkan minimal dua penguji dan satu pembimbing penilai. Panel berstatus draf atau terjadwal dapat dilengkapi melalui Ubah Jadwal dengan mempertahankan dosen yang sudah dinilai. Jadwal yang menunggu finalisasi tidak dapat diubah. Hasil sidang yang sudah final tidak dapat diubah atau dibuka kembali.';
 
     public function hasPaperPanel(ThesisDefense $defense): bool
     {

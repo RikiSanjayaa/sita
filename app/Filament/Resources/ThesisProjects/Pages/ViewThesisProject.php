@@ -382,6 +382,11 @@ class ViewThesisProject extends ViewRecord
                 ->modalCancelActionLabel('Batal')
                 ->visible(fn(): bool => $this->canScheduleDefense($record, 'sidang'))
                 ->form([
+                    Callout::make('Acuan sidang sementara')
+                        ->description(fn (): ?string => SidangSettings::programWarning($record->programStudi))
+                        ->warning()
+                        ->columnSpanFull()
+                        ->visible(fn (): bool => SidangSettings::programWarning($record->programStudi) !== null),
                     Callout::make('Bimbingan belum memenuhi minimal')
                         ->key('mentorship_minimum_warning')
                         ->description(fn(): string => $this->unmetMentorshipSummary($record))
@@ -433,7 +438,7 @@ class ViewThesisProject extends ViewRecord
                         ->default(fn(): string => $this->activeSupervisorSummary($record) ?: 'Belum ada pembimbing aktif')
                         ->disabled()
                         ->dehydrated(false)
-                        ->helperText(fn (): ?string => $minimumPaperExaminers > 0 && $this->requiredSidangPanelUserIds($record) === []
+                        ->helperText(fn (): ?string => $this->requiredSidangPanelUserIds($record) === []
                             ? 'Tetapkan minimal satu pembimbing aktif agar nilai dari berkas bisa direkap.' : null)
                         ->rows(2),
                     Select::make('additional_examiner_user_ids')
@@ -453,19 +458,13 @@ class ViewThesisProject extends ViewRecord
                         ->searchPrompt('Ketik minimal 2 karakter untuk mencari dosen')
                         ->live()
                         ->required()
-                        ->minItems(fn(): int => $minimumPaperExaminers ?: ($this->requiredSidangPanelUserIds($record) === [] ? 2 : 1))
-                        ->validationMessages($minimumPaperExaminers > 0
-                            ? ['min' => 'Pilih minimal '.$minimumPaperExaminers.' dosen penguji selain pembimbing.'] : [])
-                        ->helperText(function (Select $component) use ($minimumPaperExaminers, $record, $terms): ?string {
+                        ->minItems($minimumPaperExaminers)
+                        ->validationMessages(['min' => 'Pilih minimal '.$minimumPaperExaminers.' dosen penguji selain pembimbing.'])
+                        ->helperText(function (Select $component) use ($minimumPaperExaminers, $record): ?string {
                             if ($this->getErrorBag()->has($component->getStatePath())) {
                                 return null;
                             }
                             $supervisors = $this->requiredSidangPanelUserIds($record);
-                            if ($minimumPaperExaminers === 0) {
-                                return $supervisors === []
-                                    ? 'Belum ada pembimbing aktif. Pilih minimal dua dosen sebagai panel '.$terms['finalExamShort'].'.'
-                                    : 'Pembimbing aktif otomatis masuk panel '.$terms['finalExamShort'].'. Pilih minimal satu dosen penguji tambahan.';
-                            }
                             $selected = array_diff(array_unique(array_map('intval', $component->getState() ?? [])), $supervisors);
                             $count = count($selected);
                             $missing = $minimumPaperExaminers - $count;

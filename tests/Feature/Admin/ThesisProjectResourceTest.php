@@ -430,6 +430,7 @@ test('admin can edit scheduled sidang from schedule action and notify panel', fu
     $primarySupervisor = User::factory()->asDosen()->create();
     $secondarySupervisor = User::factory()->asDosen()->create();
     $examiner = User::factory()->asDosen()->create();
+    $secondExaminer = User::factory()->asDosen()->create();
 
     AdminProfile::query()->create([
         'user_id' => $admin->id,
@@ -441,7 +442,7 @@ test('admin can edit scheduled sidang from schedule action and notify panel', fu
         'is_active' => true,
     ]);
 
-    foreach ([$primarySupervisor, $secondarySupervisor, $examiner] as $lecturer) {
+    foreach ([$primarySupervisor, $secondarySupervisor, $examiner, $secondExaminer] as $lecturer) {
         DosenProfile::factory()->create([
             'user_id' => $lecturer->id,
             'program_studi_id' => $prodi->id,
@@ -492,7 +493,7 @@ test('admin can edit scheduled sidang from schedule action and notify panel', fu
         scheduledFor: now()->addWeek()->setTime(9, 0)->format('Y-m-d H:i:s'),
         location: 'Ruang Lama',
         mode: 'offline',
-        panelUserIds: [$primarySupervisor->id, $secondarySupervisor->id, $examiner->id],
+        panelUserIds: [$primarySupervisor->id, $secondarySupervisor->id, $examiner->id, $secondExaminer->id],
         scheduledUntil: now()->addWeek()->setTime(9, 0)->format('Y-m-d H:i:s'),
     );
 
@@ -511,7 +512,7 @@ test('admin can edit scheduled sidang from schedule action and notify panel', fu
             'scheduled_at_time' => '09:00',
             'location' => 'Ruang Baru',
             'mode' => 'hybrid',
-            'additional_examiner_user_ids' => [$examiner->id],
+            'additional_examiner_user_ids' => [$examiner->id, $secondExaminer->id],
             'notes' => 'Jadwal dipindahkan.',
         ])
         ->assertActionDataSet([

@@ -117,7 +117,8 @@ class KaprodiPortalService
             ->groupBy('project_id')->map(fn (Collection $attempts): int => $attempts->max('attempt_no'));
         $reportPeriodService = app(SidangReportPeriodService::class);
         $reportPeriods = $reportPeriodService->periods($programStudi->id);
-        $scoreSummaries = $defenses->mapWithKeys(fn (ThesisDefense $defense): array => [$defense->id => app(SidangScoreService::class)->summary($defense)]);
+        $scores = app(SidangScoreService::class);
+        $scoreSummaries = $defenses->mapWithKeys(fn (ThesisDefense $defense): array => [$defense->id => $scores->summary($defense)]);
 
         return [
             'programStudi' => $this->programStudiSummary($programStudi),
@@ -128,6 +129,7 @@ class KaprodiPortalService
             ])->all(),
             'activeReportPeriodId' => $reportPeriodService->activeId($reportPeriods),
             'minimumPaperExaminers' => SidangSettings::minimumPaperExaminers($programStudi),
+            'programWarning' => SidangSettings::programWarning($programStudi),
             'summaryCards' => collect(['sempro', 'sidang'])
                 ->map(fn(string $type): array => [
                     'label' => $this->defenseTypeLabel($type),
@@ -146,10 +148,21 @@ class KaprodiPortalService
                 'statusKey' => $defense->status,
                 'inFinalizationQueue' => $this->isInFinalizationQueue($defense),
                 'result' => $this->defenseResultLabel($defense),
-                'averageScore' => $scoreSummaries[$defense->id]['value'] ?? $this->averageScore($defense),
+                'averageScore' => $defense->type === 'sidang'
+                    ? ($defense->status === 'completed' && isset($defense->sidang_paper['value'], $defense->sidang_paper['grade'])
+                        ? (float) $defense->sidang_paper['value']
+                        : ($scoreSummaries[$defense->id]['value'] ?? null))
+                    : $this->averageScore($defense),
                 'scoreRequired' => $defense->requiresScore(),
-                'grade' => $scoreSummaries[$defense->id]['grade'] ?? $this->grade($this->averageScore($defense)),
+                'grade' => $defense->type === 'sidang'
+                    ? ($defense->status === 'completed' && isset($defense->sidang_paper['value'], $defense->sidang_paper['grade'])
+                        ? $defense->sidang_paper['grade']
+                        : ($scoreSummaries[$defense->id]['grade'] ?? null))
+                    : $this->grade($this->averageScore($defense)),
                 'paperRecorded' => isset($defense->sidang_paper['recorded_at']),
+                'paperPanelHint' => $defense->type === 'sidang' && ! $scores->hasPaperPanel($defense)
+                    ? SidangScoreService::PAPER_PANEL_HINT
+                    : null,
                 'readyForReport' => $scoreSummaries[$defense->id] !== null && $defense->status === 'completed'
                     && in_array($defense->result, ['pass', 'pass_with_revision'], true)
                     && $defense->attempt_no === $latestSidangAttempts->get($defense->project_id),

@@ -543,11 +543,6 @@ test('legacy panels can open the packet without a paper score shortcut', async (
         ).toBeVisible();
         await adminRow.getByRole('link', { name: 'Lihat Berkas' }).click();
         await expect(
-            adminPage.getByText(
-                /Panel lain tetap mengikuti alur penilaian Dosen/,
-            ),
-        ).toBeVisible();
-        await expect(
             adminPage.getByRole('button', { name: 'Simpan untuk Finalisasi' }),
         ).toHaveCount(0);
         await captureReport(adminPage, testInfo, 'admin-panel-lama', true);
@@ -564,12 +559,6 @@ test('legacy panels can open the packet without a paper score shortcut', async (
         await page
             .getByRole('menuitem', { name: 'Kelola berkas sidang' })
             .click();
-        await expect(
-            page.getByText(/Panel lain tetap mengikuti alur penilaian Dosen/),
-        ).toBeVisible();
-        await expect(
-            page.getByText(/Masukkan nilai total pada lembar/),
-        ).toHaveCount(0);
         await expect(page.getByLabel('Nilai penguji 2')).toHaveCount(0);
         await captureReport(page, testInfo, 'kaprodi-panel-lama', true);
     } finally {
@@ -659,12 +648,9 @@ test('Admin and Kaprodi see the affected student when a legacy panel cannot yet 
                 await dialog
                     .getByRole('button', { name: 'Unduh Excel', exact: true })
                     .click();
-                await expect(dialog.getByRole('alert')).toContainText(
-                    'Sinta Sidang Terjadwal',
-                );
-                await expect(dialog.getByRole('alert')).toContainText(
-                    'bobot perlu dikonfirmasi ke prodi',
-                );
+                await expect(dialog.getByRole('alert')).toContainText([
+                    /Sinta Sidang Terjadwal.*2210511005/s,
+                ]);
                 await captureReport(page, info, 'kaprodi-rekap-panel-lama');
             }
             expect(downloads).toBe(0);

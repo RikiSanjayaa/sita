@@ -608,8 +608,9 @@ test('kaprodi can assign supervisors and schedule exams for own active prodi pro
     $project = kaprodiProject($student, $prodi, 'sempro', 'active');
     $primary = User::factory()->asDosen()->create(['name' => 'Dosen Pembimbing Satu']);
     $secondary = User::factory()->asDosen()->create(['name' => 'Dosen Pembimbing Dua']);
+    $examiner = User::factory()->asDosen()->create(['name' => 'Dosen Penguji Tambahan']);
 
-    foreach ([$primary, $secondary] as $lecturer) {
+    foreach ([$primary, $secondary, $examiner] as $lecturer) {
         DosenProfile::factory()->create([
             'user_id' => $lecturer->id,
             'program_studi_id' => $prodi->id,
@@ -672,7 +673,7 @@ test('kaprodi can assign supervisors and schedule exams for own active prodi pro
             'scheduled_time' => $sidangStart->format('H:i'),
             'location' => 'Ruang Sidang',
             'mode' => 'hybrid',
-            'additional_examiner_user_ids' => [$kaprodi->id],
+            'additional_examiner_user_ids' => [$kaprodi->id, $examiner->id],
             'notes' => 'Jadwal sidang dari kaprodi.',
         ])
         ->assertRedirect()
@@ -1166,3 +1167,48 @@ test('s2 sasing seeder creates a primary kaprodi account', function (): void {
         ->and($kaprodi->kaprodiAssignment?->is_primary)->toBeTrue()
         ->and($kaprodi->kaprodiAssignment?->programStudi?->slug)->toBe('s2-sastra-inggris');
 });
+
+test('exam monitoring does not infer sidang results from an unsupported panel', function (string $type, string $status, ?array $snapshot, ?float $value, ?string $grade): void {
+    $prodi = ProgramStudi::factory()->create(['name' => 'Teknologi Informasi']);
+    $kaprodi = kaprodiRoleUser();
+    KaprodiAssignment::factory()->create([
+        'program_studi_id' => $prodi->id,
+        'user_id' => $kaprodi->id,
+        'is_primary' => true,
+    ]);
+    $student = kaprodiStudent($prodi, 'Mahasiswa Panel Lama');
+    $project = kaprodiProject($student, $prodi, $type === 'sidang' ? 'sidang' : 'sempro');
+    $defense = ThesisDefense::query()->create([
+        'project_id' => $project->id,
+        'type' => $type,
+        'attempt_no' => 1,
+        'status' => $status,
+        'scheduled_for' => now()->addWeek(),
+    ]);
+    $defense->forceFill(['sidang_paper' => $snapshot])->save();
+    foreach ([80, 87] as $index => $score) {
+        $defense->examiners()->create([
+            'lecturer_user_id' => User::factory()->asDosen()->create()->id,
+            'role' => $type === 'sidang' && $index === 0 ? 'primary_supervisor' : 'examiner',
+            'order_no' => $index + 1,
+            'score' => $score,
+        ]);
+    }
+
+    $this->actingAs($kaprodi)->get('/kaprodi/sempro-sidang')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->component('kaprodi/sempro-sidang')
+            ->where('exams.0.id', $defense->id)
+            ->where('exams.0.averageScore', $value)
+            ->where('exams.0.grade', $grade)
+            ->where('exams.0.readyForReport', false));
+
+    expect($defense->fresh()->sidang_paper)->toBe($snapshot);
+})->with([
+    'scheduled sidang without supported panel' => ['sidang', 'scheduled', null, null, null],
+    'sidang awaiting finalization without supported panel' => ['sidang', 'awaiting_finalization', null, null, null],
+    'final sidang without stored result' => ['sidang', 'completed', null, null, null],
+    'final sidang retains explicit snapshot' => ['sidang', 'completed', ['value' => 67.25, 'grade' => 'C'], 67.25, 'C'],
+    'sempro retains arithmetic average' => ['sempro', 'completed', null, 83.5, 'A'],
+]);

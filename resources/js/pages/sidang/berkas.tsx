@@ -1,10 +1,11 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowLeft, Download, Printer } from 'lucide-react';
+import { ArrowLeft, Download, FileWarning, Printer } from 'lucide-react';
 import { useRef, useState } from 'react';
 
 import { PageHeader } from '@/components/patterns/page-header';
 import { SectionCard } from '@/components/patterns/section-card';
 import { StatusBadge } from '@/components/patterns/status-badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -71,6 +72,7 @@ interface Props {
         summary: { value: number; grade: string } | null;
     };
     weights: Record<ScoreRole, number>;
+    programWarning: string | null;
     forms: Record<string, string>;
     backUrl: string;
     studentProfileUrl: string;
@@ -230,6 +232,7 @@ function ScoreHistory({ member }: { member: Panel }) {
 export default function BerkasSidang({
     defense,
     weights,
+    programWarning,
     forms,
     backUrl,
     studentProfileUrl,
@@ -312,6 +315,15 @@ export default function BerkasSidang({
                     </Button>
                 }
             />
+            {programWarning && (
+                <Alert variant="warning">
+                    <FileWarning aria-hidden />
+                    <AlertTitle>
+                        Acuan sidang prodi belum diverifikasi
+                    </AlertTitle>
+                    <AlertDescription>{programWarning}</AlertDescription>
+                </Alert>
+            )}
             <SectionCard title="Detail sidang">
                 <div className="space-y-2">
                     <p className="font-medium">
@@ -334,6 +346,23 @@ export default function BerkasSidang({
                     </StatusBadge>
                 </div>
             </SectionCard>
+            {defense.paperPanelHint && (
+                <Alert variant="warning">
+                    <FileWarning aria-hidden />
+                    <AlertTitle>Panel sidang belum lengkap</AlertTitle>
+                    <AlertDescription>
+                        <p>
+                            {defense.status === 'completed'
+                                ? 'Hasil dan nilai final tetap tersimpan. Panel ini tidak memenuhi kebutuhan rekap nilai. Panel dan hasil final tidak dapat diubah atau dibuka kembali untuk memenuhi kebutuhan rekap.'
+                                : defense.status === 'awaiting_finalization'
+                                  ? 'Panel ini tidak memenuhi kebutuhan rekap nilai. Jadwal dan panel tidak dapat diubah selama finalisasi. Lanjutkan melalui alur keputusan dan finalisasi yang tersedia.'
+                                  : defense.status === 'cancelled'
+                                    ? 'Sidang ini sudah dibatalkan. Jadwal dan panel tidak dapat diubah, dan rekap nilai dari berkas tidak tersedia.'
+                                    : 'Lengkapi panel menjadi minimal dua penguji dan satu pembimbing penilai. Kembali ke daftar ujian, lalu pilih Ubah Jadwal. Pertahankan dosen yang sudah dinilai agar nilainya tetap tersimpan.'}
+                        </p>
+                    </AlertDescription>
+                </Alert>
+            )}
             <SectionCard
                 title="Paket cetak"
                 description="Identitas dan jadwal terisi dari SiTA. Cetak paket lengkap atau satu lembar, atau unduh Word untuk diedit."
@@ -413,7 +442,11 @@ export default function BerkasSidang({
                     </div>
                 ) : (
                     <p className="text-sm text-muted-foreground">
-                        Paket tersedia untuk sidang yang sudah dijadwalkan.
+                        {defense.status === 'cancelled'
+                            ? 'Paket cetak tidak tersedia untuk sidang yang dibatalkan.'
+                            : defense.schedule
+                              ? 'Paket cetak belum tersedia untuk template prodi ini.'
+                              : 'Paket tersedia untuk sidang yang sudah dijadwalkan.'}
                     </p>
                 )}
             </SectionCard>
@@ -548,7 +581,24 @@ export default function BerkasSidang({
                             )}
                         </div>
                     )}
-                    {!defense.editable && defense.summary && (
+                    {defense.paperPanelHint && (
+                        <ul className="divide-y">
+                            {defense.panel
+                                .filter((member) => member.score !== null)
+                                .map((member) => (
+                                    <li
+                                        key={member.id}
+                                        className="space-y-2 py-3"
+                                    >
+                                        <p className="text-sm font-medium">
+                                            {member.name} · {member.score}
+                                        </p>
+                                        <ScoreHistory member={member} />
+                                    </li>
+                                ))}
+                        </ul>
+                    )}
+                    {!defense.editable && defense.summary && canEnterScores && (
                         <ul className="divide-y">
                             {roleEntries.map(([role, label]) => {
                                 const member = defense.panel.find(
@@ -707,8 +757,8 @@ export default function BerkasSidang({
                         </div>
                     ) : (
                         <p className="text-sm text-muted-foreground">
-                            {defense.editable
-                                ? defense.paperPanelHint
+                            {defense.paperPanelHint
+                                ? 'Input nilai dari berkas belum tersedia karena panel sidang belum lengkap.'
                                 : defense.summary
                                   ? 'Nilai sudah difinalisasi.'
                                   : 'Belum ada rekap nilai dari berkas untuk sidang ini.'}
