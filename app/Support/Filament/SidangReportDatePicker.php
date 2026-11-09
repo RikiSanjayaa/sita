@@ -11,6 +11,10 @@ final class SidangReportDatePicker extends DatePicker
         parent::setUp();
 
         $this->native(false)->locale('id')->displayFormat('d F Y')
-            ->firstDayOfWeek(1)->closeOnDateSelection();
+            ->firstDayOfWeek(1)->closeOnDateSelection()
+            ->validationMessages([
+                'required' => ':attribute wajib diisi.',
+                'after_or_equal' => ':attribute tidak boleh lebih awal dari tanggal mulai.',
+            ]);
     }
 }
