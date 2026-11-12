@@ -6,11 +6,17 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * Explicit name given in 2026_10_23_090000: the default exceeds the MySQL/MariaDB identifier limit.
+     * The column list stays on the drop command because SQLite matches foreign keys by column.
+     */
+    private const SECONDARY_LECTURER_FOREIGN_KEY = 'thesis_titles_proposed_secondary_lecturer_foreign';
+
     public function up(): void
     {
         Schema::table('thesis_project_titles', function (Blueprint $table) {
             $table->dropForeign(['proposed_primary_lecturer_user_id']);
-            $table->dropForeign(['proposed_secondary_lecturer_user_id']);
+            $table->dropForeign(['proposed_secondary_lecturer_user_id'])->index(self::SECONDARY_LECTURER_FOREIGN_KEY);
             $table->dropColumn('proposed_secondary_lecturer_user_id');
             $table->renameColumn('proposed_primary_lecturer_user_id', 'discussion_lecturer_user_id');
         });
@@ -31,7 +37,7 @@ return new class extends Migration
             $table->foreignId('proposed_secondary_lecturer_user_id')
                 ->nullable()
                 ->after('proposed_primary_lecturer_user_id')
-                ->constrained('users')
+                ->constrained('users', indexName: self::SECONDARY_LECTURER_FOREIGN_KEY)
                 ->nullOnDelete();
         });
 
