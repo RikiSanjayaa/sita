@@ -2,6 +2,8 @@
 
 Dokumen ini menjelaskan deployment SITA untuk aaPanel Free, Nginx, PHP-FPM, MariaDB/MySQL, dan Node.js untuk build asset.
 
+Server yang sudah berjalan dan ingin update ke versi terbaru: ikuti [PANDUAN-UPDATE-AAPANEL.md](PANDUAN-UPDATE-AAPANEL.md).
+
 ## Ringkasan Audit
 
 - Backend: Laravel 12, PHP minimal 8.4 untuk lock dependency saat ini, Fortify untuk auth, Inertia Laravel, Filament untuk admin.
@@ -115,6 +117,8 @@ REVERB_ALLOWED_ORIGINS=sita.kampus.ac.id
 ```
 
 `REVERB_ALLOWED_ORIGINS` berisi hostname saja (tanpa `https://`), dipisah koma bila lebih dari satu. Jika kosong, Reverb memakai `*` dan menerima WebSocket dari origin mana pun; doctor akan menandainya `[FAIL]`.
+
+Gunakan `DB_CONNECTION=mysql` juga untuk server MariaDB. Driver `mariadb` tidak dikenali oleh pengecekan MySQL pada migration `2026_03_01_070000` sehingga migration tersebut gagal.
 
 Jangan commit `.env`.
 
