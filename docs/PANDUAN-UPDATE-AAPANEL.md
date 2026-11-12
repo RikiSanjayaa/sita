@@ -198,12 +198,19 @@ location ~ ^/(app|apps)(?:/|$) {
     proxy_send_timeout 3600;
     proxy_pass http://127.0.0.1:8080;
 }
+
+location = /manifest.webmanifest {
+    types { application/manifest+json webmanifest; }
+    try_files $uri =404;
+    add_header Cache-Control "no-cache" always;
+}
 ```
 
 Perubahan dibanding versi lama:
 
 - Proxy Reverb memakai regex `^/(app|apps)(?:/|$)` dan timeout `3600` (sebelumnya `60`, sehingga WebSocket putus setiap menit).
 - Blok `/storage/` baru, agar foto profil dan lampiran tidak terblokir rule deny folder `storage`.
+- Blok `/manifest.webmanifest` baru, agar aplikasi yang dipasang di HP (PWA) langsung membaca ikon dan warna terbaru setelah deploy.
 - Opsional: empat header keamanan di level `server` (lihat template baris 17-20).
 
 Klik Save di aaPanel; panel memvalidasi dan me-reload Nginx. Dari SSH:
@@ -230,6 +237,9 @@ Lalu cek dari browser:
 - [ ] Buka menu Pesan di dua browser dengan akun berbeda. Kirim pesan; pesan muncul di sisi lain tanpa refresh (Reverb).
 - [ ] Foto profil atau lampiran lama tetap bisa dibuka (`/storage/...`).
 - [ ] DevTools > Console tidak menampilkan error `404` untuk `/build/` atau `/livewire/`.
+- [ ] Di HP Android (Chrome/Firefox), buka situs lalu ganti mode Terang/Gelap dari tombol tampilan. Warna status bar ikut berubah sesuai header aplikasi.
+
+Pengguna yang sudah memasang SITA di layar utama HP perlu menghapus lalu memasang ulang aplikasinya sekali. Ikon dan warna lama tersimpan di perangkat. Jika status bar masih memakai warna lama, tutup paksa browser lalu buka lagi.
 
 ## Rollback
 
