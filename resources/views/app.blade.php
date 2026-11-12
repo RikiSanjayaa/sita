@@ -5,18 +5,20 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
         <meta name="reverb-config" content="{{ json_encode(\App\Support\ReverbClientConfig::toArray()) }}">
+        {{-- One theme-color without `media`: Firefox uses the first match and ignores the app appearance otherwise. resources/js/lib/theme-color.ts keeps it equal to --background. --}}
+        <meta name="theme-color" content="#f8fafc">
 
         {{-- Inline script to detect system dark mode preference and apply it immediately --}}
         <script>
             (function() {
                 const appearance = '{{ $appearance ?? "system" }}';
+                const isDark = appearance === 'dark'
+                    || (appearance === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
-                if (appearance === 'system') {
-                    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-                    if (prefersDark) {
-                        document.documentElement.classList.add('dark');
-                    }
+                if (isDark) {
+                    document.documentElement.classList.add('dark');
+                    // Same value as the html background below until app.css provides the scheme token.
+                    document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0b0f14');
                 }
             })();
         </script>
@@ -53,8 +55,6 @@
         <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml">
         <link rel="apple-touch-icon" href="{{ asset('apple-touch-icon.png') }}">
         <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
-        <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f8fafc">
-        <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0b0f14">
         <meta name="apple-mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-title" content="SITA">
 

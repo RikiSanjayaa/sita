@@ -1,5 +1,7 @@
 import { useCallback, useSyncExternalStore } from 'react';
 
+import { syncThemeColor } from '@/lib/theme-color';
+
 // The scheme only chooses which `[data-theme]` block of resources/css/app.css
 // applies. This file never writes a colour value.
 const STORAGE_KEY = 'sita_theme_preset';
@@ -84,6 +86,7 @@ const writeStoredScheme = (id: ThemeSchemeId): void => {
 
 const applyScheme = (id: ThemeSchemeId): void => {
     document.documentElement.dataset.theme = id;
+    syncThemeColor();
 };
 
 /**

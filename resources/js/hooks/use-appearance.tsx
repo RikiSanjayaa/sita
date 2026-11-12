@@ -1,5 +1,7 @@
 import { useCallback, useMemo, useSyncExternalStore } from 'react';
 
+import { syncThemeColor } from '@/lib/theme-color';
+
 export type ResolvedAppearance = 'light' | 'dark';
 export type Appearance = ResolvedAppearance | 'system';
 
@@ -35,6 +37,7 @@ const applyTheme = (appearance: Appearance): void => {
 
     document.documentElement.classList.toggle('dark', isDark);
     document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
+    syncThemeColor();
 };
 
 const subscribe = (callback: () => void) => {

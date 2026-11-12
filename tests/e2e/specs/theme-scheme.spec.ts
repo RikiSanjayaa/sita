@@ -14,6 +14,27 @@ const computedPrimary = (page: Page): Promise<string> =>
             .trim(),
     );
 
+const computedBackground = (page: Page): Promise<string> =>
+    page.evaluate(() =>
+        getComputedStyle(document.documentElement)
+            .getPropertyValue('--background')
+            .trim(),
+    );
+
+// Firefox uses the first theme-color meta, so there must be exactly one and it
+// must not carry `media` (which would follow the OS instead of the app).
+const themeColorMetas = (
+    page: Page,
+): Promise<{ content: string | null; media: string | null }[]> =>
+    page.evaluate(() =>
+        Array.from(document.querySelectorAll('meta[name="theme-color"]')).map(
+            (meta) => ({
+                content: meta.getAttribute('content'),
+                media: meta.getAttribute('media'),
+            }),
+        ),
+    );
+
 const themeCookie = async (page: Page): Promise<string | undefined> =>
     (await page.context().cookies()).find(({ name }) => name === COOKIE)?.value;
 
@@ -155,6 +176,44 @@ test.describe('Theme scheme, guest', () => {
 
         await expect(page.locator('html')).toHaveClass(/dark/);
         expect(await computedPrimary(page)).not.toBe(lightPrimary);
+    });
+
+    test('the browser theme colour follows the chosen scheme and mode, not the OS', async ({
+        page,
+    }) => {
+        await page.emulateMedia({ colorScheme: 'light' });
+        await openPublicPicker(page);
+        await page.getByRole('button', { name: 'Grafit' }).click();
+        const lightBackground = await computedBackground(page);
+
+        expect(await themeColorMetas(page)).toEqual([
+            { content: lightBackground, media: null },
+        ]);
+
+        await page.getByRole('button', { name: 'Gelap' }).click();
+        await expect(page.locator('html')).toHaveClass(/dark/);
+        const darkBackground = await computedBackground(page);
+
+        expect(darkBackground).not.toBe(lightBackground);
+        expect(await themeColorMetas(page)).toEqual([
+            { content: darkBackground, media: null },
+        ]);
+    });
+
+    test('a dark OS sets the dark theme colour before the app bundle runs', async ({
+        page,
+    }) => {
+        await page.emulateMedia({ colorScheme: 'dark' });
+        await page.route('**/*', (route) =>
+            route.request().resourceType() === 'script'
+                ? route.abort()
+                : route.continue(),
+        );
+        await page.goto('/login');
+
+        expect(await themeColorMetas(page)).toEqual([
+            { content: '#0b0f14', media: null },
+        ]);
     });
 
     test('the server renders the saved scheme into the first HTML, on login too', async ({
