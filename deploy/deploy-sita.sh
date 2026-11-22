@@ -7,10 +7,10 @@ case "$TAG" in
     *) echo "TAG harus diawali sha-<commit>" >&2; exit 2 ;;
 esac
 
-APP_DIR=${DEPLOY_PATH:-/home/aji/deployments/sita}
+APP_DIR=${DEPLOY_PATH:-$HOME/deployments/sita}
 COMPOSE=docker-compose.vm.yml
 IMAGE_PREFIX=${IMAGE_PREFIX:-ghcr.io/rikisanjayaa}
-BACKUP_SCRIPT=${BACKUP_SCRIPT:-/home/aji/deployments/backup-prod.sh}
+BACKUP_SCRIPT=${BACKUP_SCRIPT:-$HOME/deployments/backup-prod.sh}
 WEB_PORT=${WEB_PORT:-8088}
 cd "$APP_DIR"
 

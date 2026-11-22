@@ -23,6 +23,8 @@ SITA_WEB_BIND=0.0.0.0
 
 Salin `deploy.env.example` menjadi `deploy.env` di folder deployment. Jangan commit `deploy.env`.
 
+Script deploy default ke `$HOME/deployments/sita` dan `$HOME/deployments/backup-prod.sh`. Jika user deploy memakai home lain, letakkan folder deployment dan script backup di bawah home user itu.
+
 ## File di server
 
 ```text
