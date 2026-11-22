@@ -64,7 +64,7 @@ services:
     pull_policy: ${SITA_PULL_POLICY:-always}
     restart: unless-stopped
     ports:
-      - '${SITA_WEB_BIND:-0.0.0.0}:8088:80'
+      - '${SITA_WEB_BIND:-0.0.0.0}:${SITA_WEB_PORT:-8088}:80'
     volumes:
       - storage:/var/www/html/storage:ro
     depends_on:
