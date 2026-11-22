@@ -42,6 +42,41 @@ docker compose --env-file deploy.env -f docker-compose.vm.yml ps
 
 Service `init` menjalankan migrasi, `storage:link`, dan cache config sebelum `app`, `queue`, `scheduler`, dan `reverb` mulai. `RUN_DB_SEED=false` mencegah seeder.
 
+## Deploy lewat GitHub Actions
+
+Workflow `.github/workflows/deploy.yml` hanya berjalan manual (`workflow_dispatch`). Isi input `tag`, misalnya `sha-f7756d0`. Workflow memanggil `deploy/deploy-sita.sh` di server.
+
+Script server akan:
+
+1. menyimpan `deploy.env` lama;
+2. menarik image baru;
+3. menjalankan `backup-prod.sh`;
+4. mengganti image di `deploy.env`;
+5. `up -d` dan cek `/up` serta halaman utama;
+6. rollback ke `deploy.env` lama jika health gagal.
+
+Secret repository atau environment `production`:
+
+| Secret | Isi |
+|---|---|
+| `DEPLOY_HOST` | Hostname atau IP server |
+| `DEPLOY_USER` | User SSH khusus deploy |
+| `DEPLOY_SSH_KEY` | Private key user deploy |
+| `DEPLOY_KNOWN_HOSTS` | Output `ssh-keyscan -H <host>` |
+| `DEPLOY_PORT` | Opsional, default 22 |
+
+Gunakan user deploy khusus dan key khusus. Jangan memakai key pribadi.
+
+## Test lab
+
+Script lab menjalankan image GHCR yang sama di project Docker terpisah, port `28088`, dengan MariaDB kosong, lalu menghapus semuanya:
+
+```bash
+TAG=sha-f7756d0 ./deploy/lab-sita.sh
+```
+
+Script memerlukan Docker dan akses GHCR. Tidak menyentuh volume atau container produksi.
+
 ## Rollback
 
 Ganti `SITA_APP_IMAGE` dan `SITA_WEB_IMAGE` ke tag commit sebelumnya, lalu:
