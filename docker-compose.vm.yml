@@ -1,0 +1,105 @@
+name: sita
+
+# Compose khusus VM produksi. Database memakai MariaDB karena data berasal
+# dari dump MySQL server lama. Ini bukan pengganti docker-compose.yml (dev)
+# atau docker-compose.deploy.yml (Postgres/GHCR).
+x-app: &app
+  image: ${SITA_APP_IMAGE:-ghcr.io/rikisanjayaa/sita-app:sha-f7756d0}
+  pull_policy: ${SITA_PULL_POLICY:-always}
+  env_file: app.env
+  environment:
+    RUN_DB_SEED: 'false'
+  volumes:
+    - storage:/var/www/html/storage
+  security_opt:
+    - no-new-privileges:true
+  logging:
+    driver: local
+    options:
+      max-size: 10m
+      max-file: '3'
+
+services:
+  db:
+    image: mariadb:10.11
+    env_file: db.env
+    restart: unless-stopped
+    volumes:
+      - database:/var/lib/mysql
+    healthcheck:
+      test: [CMD, healthcheck.sh, --connect, --innodb_initialized]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    logging:
+      driver: local
+      options:
+        max-size: 10m
+        max-file: '3'
+
+  init:
+    <<: *app
+    command: [init]
+    restart: 'no'
+    depends_on:
+      db:
+        condition: service_healthy
+
+  app:
+    <<: *app
+    command: [php-fpm, '-F']
+    restart: unless-stopped
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: [CMD-SHELL, 'SCRIPT_NAME=/up SCRIPT_FILENAME=/var/www/html/public/index.php REQUEST_METHOD=GET REMOTE_ADDR=127.0.0.1 cgi-fcgi -bind -connect 127.0.0.1:9000 > /dev/null']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  web:
+    image: ${SITA_WEB_IMAGE:-ghcr.io/rikisanjayaa/sita-web:sha-f7756d0}
+    pull_policy: ${SITA_PULL_POLICY:-always}
+    restart: unless-stopped
+    ports:
+      - '${SITA_WEB_BIND:-0.0.0.0}:8088:80'
+    volumes:
+      - storage:/var/www/html/storage:ro
+    depends_on:
+      app:
+        condition: service_healthy
+    logging:
+      driver: local
+      options:
+        max-size: 10m
+        max-file: '3'
+
+  queue:
+    <<: *app
+    command: [queue]
+    restart: unless-stopped
+    depends_on:
+      init:
+        condition: service_completed_successfully
+
+  scheduler:
+    <<: *app
+    command: [scheduler]
+    restart: unless-stopped
+    depends_on:
+      init:
+        condition: service_completed_successfully
+
+  reverb:
+    <<: *app
+    command: [reverb]
+    restart: unless-stopped
+    depends_on:
+      init:
+        condition: service_completed_successfully
+
+volumes:
+  database:
+  storage:
