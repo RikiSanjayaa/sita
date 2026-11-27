@@ -81,7 +81,8 @@ jobs:
 
   e2e-shard:
     name: e2e (shard ${{ matrix.shard }}/3)
-    runs-on: ubuntu-latest
+    # Playwright has no Chromium build for ubuntu-26.04 yet; ubuntu-latest moved there.
+    runs-on: ubuntu-24.04
     # Three runners share the suite (each with its own SQLite and servers);
     # every shard also runs the setup project it depends on.
     timeout-minutes: 20

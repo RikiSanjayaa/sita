@@ -18,7 +18,8 @@ permissions:
 jobs:
   capture:
     name: capture (shard ${{ matrix.shard }}/4)
-    runs-on: ubuntu-latest
+    # Playwright has no Chromium build for ubuntu-26.04 yet; ubuntu-latest moved there.
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:
       fail-fast: true
