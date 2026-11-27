@@ -206,6 +206,22 @@ Kirim kategori akademik langsung; chat digabung per penerima dan percakapan dala
 
 Manifest mendukung pemasangan PWA dan service worker menerima push serta membuka tujuan same-origin. Tidak ada cache halaman privat atau dukungan membuka aplikasi offline. Worker menjadi satu-satunya sumber notifikasi OS; saat jendela SiTA fokus, umpan balik tetap melalui notifikasi dalam aplikasi.
 
+#### Verifikasi deployment kampus, 23 November 2026
+
+Di VM kampus, konfigurasi privat berada di `/home/aji/deployments/sita/app.env` (mode `0600`). `APP_URL=https://sita.ubg.ac.id`, cookie sesi `Secure`, `WEB_PUSH_ENABLED=true`, dan pasangan VAPID disimpan di file tersebut dengan subject `https://sita.ubg.ac.id`. Jangan membuat ulang kunci pada deploy berikutnya. Compose VM membaca `app.env` untuk seluruh service PHP; perubahan environment diterapkan tanpa menjalankan init, migrasi, atau seeder:
+
+```bash
+cd /home/aji/deployments/sita
+docker compose --env-file deploy.env -f docker-compose.vm.yml up -d --no-deps --no-build --pull never --wait --wait-timeout 90 app queue scheduler reverb
+docker exec sita-web-1 nginx -s reload
+```
+
+Port web tetap `127.0.0.1:8088`; Reverb tidak memublikasikan port host. Login mahasiswa, dosen, kaprodi, serta login admin melalui `/admin/login` diuji di browser. Uji akun sementara juga meliputi chat dua arah dengan frame WSS nyata, upload PDF, unduhan mahasiswa/dosen, penolakan pengguna lain (403), serta persetujuan dokumen.
+
+Web Push diuji dengan Chrome Linux headless pada profil normal: subscription FCM nyata, preferensi pesan aktif, pesan melewati queue, dan notifikasi generik dikembalikan `ServiceWorkerRegistration.getNotifications()` setelah seluruh jendela SITA ditutup. Tidak ada event push atau respons provider yang dipalsukan. Saat jendela SITA masih fokus, worker memang tidak menampilkan notifikasi browser. Mode privat pada browser uji gagal membuat subscription dengan `AbortError`; profil normal berhasil. Unsubscribe diuji, lalu akun, dokumen, file unggahan, percakapan, sesi dan data akademik sementara dibersihkan. Tidak ada notifikasi uji ke pengguna asli. Bukti ini belum menggantikan pemeriksaan tampilan OS dan matriks perangkat nyata di bawah.
+
+Uji browser ini menuju origin HTTPS dengan CA origin dipercaya pada profil uji dan header proxy `X-Forwarded-Proto: https`. Ini bukan bukti bahwa seluruh jalur publik Cloudflare atau pemasangan pada ponsel telah lolos. Admin/pengguna kemudian melaporkan Force HTTPS sudah dikerjakan; redirect dan mode SSL Cloudflare tidak diuji ulang dalam sesi ini. Pertahankan upstream loopback.
+
 ### Batas perangkat dan pemeriksaan sebelum produksi
 
 - Chrome/Firefox desktop memerlukan browser atau penerima background yang aktif. Tab ditutup tidak sama dengan browser benar-benar berhenti; PWA tidak menjamin autostart saat boot.
