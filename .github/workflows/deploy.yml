@@ -7,6 +7,13 @@ on:
         description: 'Image tag, contoh sha-f7756d0'
         required: true
         type: string
+  workflow_run:
+    workflows:
+      - images
+    branches:
+      - main
+    types:
+      - completed
 
 permissions:
   contents: read
@@ -17,21 +24,27 @@ concurrency:
 
 jobs:
   deploy:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     environment: production
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Validate tag
+      - name: Resolve tag
+        id: tag
         env:
-          TAG: ${{ inputs.tag }}
+          INPUT_TAG: ${{ inputs.tag }}
+          RUN_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
-          case "$TAG" in
-            sha-[0-9a-f]*) ;;
-            *) echo "tag harus diawali sha-<commit>" >&2; exit 1 ;;
-          esac
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="$INPUT_TAG"
+          else
+            TAG="sha-$(printf '%s' "$RUN_SHA" | cut -c1-7)"
+          fi
+          if ! printf '%s' "$TAG" | grep -Eq '^sha-[0-9a-f]{7,40}$'; then
+            echo "tag harus sha-<commit>, diterima: $TAG" >&2
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Configure SSH
         env:
@@ -49,9 +62,10 @@ jobs:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
-          TAG: ${{ inputs.tag }}
+          TAG: ${{ steps.tag.outputs.tag }}
         run: |
           PORT="${DEPLOY_PORT:-22}"
           ssh -i ~/.ssh/id_ed25519 -p "$PORT" \
             -o BatchMode=yes -o StrictHostKeyChecking=yes \
-            "$DEPLOY_USER@$DEPLOY_HOST" "TAG='$TAG' bash -s" < deploy/deploy-sita.sh
+            -o IdentitiesOnly=yes \
+            "$DEPLOY_USER@$DEPLOY_HOST" "deploy sita $TAG"
