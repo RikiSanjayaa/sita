@@ -42,7 +42,16 @@ if ! sed \
 fi
 chmod 600 "$next_env"
 
-if ! docker compose --env-file "$next_env" -f "$COMPOSE" pull; then
+pulled=0
+for attempt in 1 2 3 4 5; do
+    if docker compose --env-file "$next_env" -f "$COMPOSE" pull; then
+        pulled=1
+        break
+    fi
+    log "pull percobaan $attempt gagal; menunggu registry"
+    sleep 15
+done
+if [ "$pulled" -ne 1 ]; then
     rm -f "$next_env"
     log "FAIL pull image $TAG"
     exit 1

@@ -7,6 +7,13 @@ on:
         description: 'Image tag, contoh sha-f7756d0'
         required: true
         type: string
+  workflow_run:
+    workflows:
+      - images
+    branches:
+      - main
+    types:
+      - completed
 
 permissions:
   contents: read
@@ -17,16 +24,22 @@ concurrency:
 
 jobs:
   deploy:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 30
     steps:
-      - name: Validate tag
+      - name: Resolve tag
         id: tag
         env:
           INPUT_TAG: ${{ inputs.tag }}
+          RUN_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
-          TAG="$INPUT_TAG"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="$INPUT_TAG"
+          else
+            TAG="sha-$(printf '%s' "$RUN_SHA" | cut -c1-7)"
+          fi
           if ! printf '%s' "$TAG" | grep -Eq '^sha-[0-9a-f]{7,40}$'; then
             echo "tag harus sha-<commit>, diterima: $TAG" >&2
             exit 1

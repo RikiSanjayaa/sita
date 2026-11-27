@@ -46,7 +46,14 @@ Service `init` menjalankan migrasi, `storage:link`, dan cache config sebelum `ap
 
 ## Deploy lewat GitHub Actions
 
-Workflow `.github/workflows/deploy.yml` hanya berjalan manual (`workflow_dispatch`). Isi input `tag`, misalnya `sha-f7756d0`. Workflow memanggil `deploy/deploy-sita.sh` di server.
+Workflow `.github/workflows/deploy.yml` berjalan dua cara:
+
+- **Otomatis**: setelah workflow `images` sukses untuk `main`, tag `sha-<7 karakter commit>` dikirim ke server. Merge ke `main` langsung men-deploy begitu image selesai dibangun.
+- **Manual**: `workflow_dispatch` dengan input `tag`, misalnya `sha-f7756d0`, untuk rollback atau deploy ulang.
+
+Hapus blok `workflow_run` pada `on:` untuk mematikan deploy otomatis; `workflow_dispatch` tetap bekerja.
+
+Workflow mengirim satu perintah `deploy sita <tag>` ke `deploy-gateway.sh` di server. Gateway hanya menerima `deploy <caripasal|sita> sha-<hex>` dan dipasang sebagai `command=` pada key deploy di `~/.ssh/authorized_keys`, lalu menjalankan `deploy/deploy-sita.sh` dengan `TAG` di environment.
 
 Script server akan:
 
